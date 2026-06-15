@@ -11,7 +11,7 @@ https://apa-chatbot.vercel.app
 GitHub Pages 发布后的目标地址格式：
 
 ```text
-https://<github-username>.github.io/apa-chatbot/
+https://sunnyzou-cd.github.io/APA_Chatbot/
 ```
 
 ## 1. 部署前风险说明

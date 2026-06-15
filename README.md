@@ -10,7 +10,7 @@ Current version: `1.0.0`
 
 Professor-facing URL: https://apa-chatbot.vercel.app
 
-GitHub Pages target URL after publishing: `https://<github-username>.github.io/apa-chatbot/`
+GitHub Pages target URL after publishing: `https://sunnyzou-cd.github.io/APA_Chatbot/`
 
 ## What This App Does
 
@@ -53,6 +53,7 @@ This project can be delivered through GitHub Pages without using a personal doma
 Recommended professor-facing deployment:
 
 - GitHub Pages URL: `https://<github-username>.github.io/apa-chatbot/`
+- Actual GitHub Pages URL: `https://sunnyzou-cd.github.io/APA_Chatbot/`
 - Build command for Pages: `npm run build:pages`
 - GitHub Actions workflow: `.github/workflows/deploy-github-pages.yml`
 

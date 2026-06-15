@@ -13,7 +13,7 @@ https://apa-chatbot.vercel.app
 GitHub Pages target URL after publishing:
 
 ```text
-https://<github-username>.github.io/apa-chatbot/
+https://sunnyzou-cd.github.io/APA_Chatbot/
 ```
 
 ## Risk Notes
