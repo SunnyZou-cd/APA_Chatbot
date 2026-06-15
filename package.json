@@ -1,13 +1,15 @@
 {
   "name": "apa-chatbot",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "build:pages": "tsc && cross-env GITHUB_PAGES=true vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "check": "npm run test && npm run build:pages && npm audit --audit-level=high"
   },
   "engines": {
     "node": "24.x"
@@ -24,6 +26,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "cross-env": "^10.1.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.9"
   }
 }

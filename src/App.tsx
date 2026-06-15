@@ -14,99 +14,29 @@ import {
   Sparkles,
 } from "lucide-react";
 import { checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./data/rules";
+import { fieldDefinitions, sourceExamples, sourceTypeConfigs } from "./data/sourceExamples";
 import { aiFeedbackProvider } from "./lib/aiFeedbackProvider";
 import { buildCitation } from "./lib/citation";
-import type { CheckIssue, SourceInput, SourceType } from "./types";
+import type { CheckIssue, RuleTopic, SourceInput, SourceType } from "./types";
 
 type Tab = "build" | "check" | "learn" | "review";
 
 const publicBasePath = import.meta.env.BASE_URL;
 
-const emptyInput: SourceInput = {
-  sourceType: "journalArticle",
-  author: "Smith, J.",
-  date: "2024",
-  title: "Learning APA style in first-year psychology",
-  source: "Journal of Student Writing",
-  publisher: "",
-  doi: "10.1037/example",
-  url: "",
-  pages: "12(2), 45-61",
-};
-
 const sampleCheck =
   "Smith, J. The Article Title. Journal of Student Writing, 12(2).";
 
-const fieldConfig: Array<{
-  key: keyof SourceInput;
-  label: string;
-  placeholder: string;
-  helper: string;
-}> = [
-  {
-    key: "author",
-    label: "Author",
-    placeholder: "Smith, J.",
-    helper: "Use the name exactly as the source gives it.",
-  },
-  {
-    key: "date",
-    label: "Date",
-    placeholder: "2024",
-    helper: "Use n.d. only when the source truly has no date.",
-  },
-  {
-    key: "title",
-    label: "Title",
-    placeholder: "Learning APA style in first-year psychology",
-    helper: "Article and webpage titles usually use sentence case.",
-  },
-  {
-    key: "source",
-    label: "Source",
-    placeholder: "Journal, website, course, or platform",
-    helper: "Name the container that helps a reader find the work.",
-  },
-  {
-    key: "publisher",
-    label: "Publisher or book title",
-    placeholder: "Publisher or edited book title",
-    helper: "Needed for books, chapters, reports, and some AI tools.",
-  },
-  {
-    key: "pages",
-    label: "Volume, issue, or pages",
-    placeholder: "12(2), 45-61",
-    helper: "Use page or article details when they are available.",
-  },
-  {
-    key: "doi",
-    label: "DOI",
-    placeholder: "10.1037/example",
-    helper: "A DOI is preferred when available.",
-  },
-  {
-    key: "url",
-    label: "URL",
-    placeholder: "https://example.edu/source",
-    helper: "Use a stable URL when a DOI is not available and retrieval is needed.",
-  },
+const topicFilters: Array<"All" | RuleTopic> = [
+  "All",
+  "In-text citations",
+  "References",
+  "Paper setup",
+  "AI citation/disclosure",
 ];
-
-const visibleFields: Record<SourceType, Array<keyof SourceInput>> = {
-  journalArticle: ["author", "date", "title", "source", "pages", "doi", "url"],
-  book: ["author", "date", "title", "publisher", "doi", "url"],
-  bookChapter: ["author", "date", "title", "source", "publisher", "pages", "doi", "url"],
-  webpage: ["author", "date", "title", "source", "url"],
-  report: ["author", "date", "title", "publisher", "doi", "url"],
-  video: ["author", "date", "title", "source", "url"],
-  courseMaterial: ["author", "date", "title", "source"],
-  generativeAI: ["author", "date", "title", "source", "url"],
-};
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
-  const [sourceInput, setSourceInput] = useState<SourceInput>(emptyInput);
+  const [sourceInput, setSourceInput] = useState<SourceInput>(sourceExamples[0].input);
   const [checkText, setCheckText] = useState(sampleCheck);
   const [issues, setIssues] = useState<CheckIssue[]>([]);
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
@@ -138,11 +68,11 @@ function App() {
       <section className="workspace">
         <aside className="sidebar" aria-label="APA Coach navigation">
           <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">
+            <div className="brand-mark" aria-hidden="true">
               <GraduationCap size={24} />
             </div>
             <div>
-              <p className="eyebrow">v1.0 review build</p>
+              <p className="eyebrow">v1.1 review build</p>
               <h1>APA Coach</h1>
             </div>
           </div>
@@ -232,7 +162,12 @@ function BuildView({
   sourceInput: SourceInput;
   updateField: (key: keyof SourceInput, value: string) => void;
 }) {
-  const fields = fieldConfig.filter((field) => visibleFields[sourceInput.sourceType].includes(field.key));
+  const config = sourceTypeConfigs[sourceInput.sourceType];
+  const visibleFields = [...config.requiredFields, ...config.optionalFields];
+  const fields = fieldDefinitions.filter((field) => visibleFields.includes(field.field));
+  const selectedExampleId =
+    sourceExamples.find((example) => JSON.stringify(example.input) === JSON.stringify(sourceInput))?.id ?? "";
+  const fieldIssues = new Map(citation.validationIssues.map((issue) => [issue.field, issue]));
 
   return (
     <div className="view-grid">
@@ -240,8 +175,29 @@ function BuildView({
         <div className="section-heading">
           <p className="eyebrow">Build</p>
           <h2>Create a citation pair</h2>
-          <p>Enter source details, then compare the reference entry with parenthetical and narrative in-text forms.</p>
+          <p>Choose a source type or curated example, then complete the required fields before copying a citation.</p>
         </div>
+
+        <label className="field-block">
+          <span>Curated example</span>
+          <select
+            value={selectedExampleId}
+            onChange={(event) => {
+              const example = sourceExamples.find((item) => item.id === event.target.value);
+              if (example) {
+                Object.entries(example.input).forEach(([key, value]) => updateField(key as keyof SourceInput, value));
+              }
+            }}
+          >
+            <option value="">Custom source</option>
+            {sourceExamples.map((example) => (
+              <option key={example.id} value={example.id}>
+                {example.label}
+              </option>
+            ))}
+          </select>
+          <small>Select a complete or intentionally incomplete practice example.</small>
+        </label>
 
         <label className="field-block">
           <span>Source type</span>
@@ -259,14 +215,18 @@ function BuildView({
 
         <div className="form-grid">
           {fields.map((field) => (
-            <label className="field-block" key={field.key}>
-              <span>{field.label}</span>
+            <label className={fieldIssues.has(field.field) ? "field-block has-issue" : "field-block"} key={field.field}>
+              <span>
+                {field.label}
+                {config.requiredFields.includes(field.field) ? " *" : ""}
+              </span>
               <input
-                value={sourceInput[field.key]}
+                value={sourceInput[field.field]}
                 placeholder={field.placeholder}
-                onChange={(event) => updateField(field.key, event.target.value)}
+                onChange={(event) => updateField(field.field, event.target.value)}
               />
               <small>{field.helper}</small>
+              {fieldIssues.has(field.field) && <small className="field-error">{fieldIssues.get(field.field)?.studentAction}</small>}
             </label>
           ))}
         </div>
@@ -281,6 +241,9 @@ function BuildView({
               <span>{copied === "reference" ? "Copied" : "Copy"}</span>
             </button>
           </div>
+          <p className={citation.status === "incomplete" ? "status-pill incomplete" : "status-pill complete"}>
+            {citation.status === "incomplete" ? "Incomplete citation" : "Ready to review"}
+          </p>
           <p className="citation-output hanging">{citation.reference}</p>
         </div>
 
@@ -295,10 +258,12 @@ function BuildView({
           </div>
         </div>
 
-        {citation.warnings.length > 0 && (
+        {citation.validationIssues.length > 0 && (
           <div className="warning-list">
-            {citation.warnings.map((warning) => (
-              <p key={warning}>{warning}</p>
+            {citation.validationIssues.map((issue) => (
+              <p key={`${issue.field}-${issue.message}`}>
+                <strong>{issue.severity.toUpperCase()}:</strong> {issue.message} {issue.studentAction}
+              </p>
             ))}
           </div>
         )}
@@ -380,7 +345,10 @@ function CheckView({
                   <small>{issue.confidence} confidence</small>
                 </div>
                 <h3>{issue.message}</h3>
+                <p><strong>Why it matters:</strong> {issue.whyItMatters}</p>
                 <p>{issue.hint}</p>
+                <p><strong>Student action:</strong> {issue.studentAction}</p>
+                <p className="rule-source">Rule source: {issue.ruleSource}</p>
                 <button
                   className="reveal-button"
                   type="button"
@@ -406,6 +374,8 @@ function CheckView({
 
 function LearnView() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [topicFilter, setTopicFilter] = useState<"All" | RuleTopic>("All");
+  const visibleRuleCards = topicFilter === "All" ? ruleCards : ruleCards.filter((rule) => rule.topic === topicFilter);
 
   return (
     <div className="learn-stack">
@@ -415,12 +385,29 @@ function LearnView() {
         <p>Use these cards to connect each correction to a rule, example, and instructor check point.</p>
       </div>
 
+      <div className="choice-row" role="group" aria-label="Rule topic filters">
+        {topicFilters.map((topic) => (
+          <button
+            className={topicFilter === topic ? "choice-button selected" : "choice-button"}
+            key={topic}
+            type="button"
+            onClick={() => setTopicFilter(topic)}
+          >
+            {topic}
+          </button>
+        ))}
+      </div>
+
       <section className="rule-grid">
-        {ruleCards.map((rule) => (
+        {visibleRuleCards.map((rule) => (
           <article className="rule-card" key={rule.id}>
+            <p className="eyebrow">{rule.topic}</p>
             <h3>{rule.title}</h3>
             <p>{rule.plainLanguageRule}</p>
             <div className="example-box">{rule.example}</div>
+            <p><strong>Common mistake:</strong> {rule.commonMistake}</p>
+            <p><strong>Student action:</strong> {rule.studentAction}</p>
+            <p><strong>Ask instructor when:</strong> {rule.askInstructorWhen}</p>
             <a href={rule.officialLink} target="_blank" rel="noreferrer">
               Open source
             </a>
@@ -451,25 +438,32 @@ function LearnView() {
               <p>{item.prompt}</p>
               <div className="choice-row">
                 {item.choices.map((choice) => {
-                  const selected = selectedAnswers[index] === choice;
-                  const correct = selected && choice === item.answer;
+                  const selected = selectedAnswers[index] === choice.value;
+                  const correct = selected && choice.value === item.answer;
                   return (
                     <button
                       className={correct ? "choice-button correct" : selected ? "choice-button selected" : "choice-button"}
-                      key={choice}
+                      key={choice.value}
                       type="button"
                       onClick={() =>
                         setSelectedAnswers((current) => ({
                           ...current,
-                          [index]: choice,
+                          [index]: choice.value,
                         }))
                       }
                     >
-                      {choice}
+                      {choice.value}
                     </button>
                   );
                 })}
               </div>
+              {selectedAnswers[index] && (
+                <div className="feedback-box">
+                  <strong>{selectedAnswers[index] === item.answer ? "Correct:" : "Try again:"}</strong>{" "}
+                  {item.choices.find((choice) => choice.value === selectedAnswers[index])?.feedback}
+                  <p>{item.explanation}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -480,11 +474,11 @@ function LearnView() {
 
 function ReviewView() {
   const readinessItems = [
-    "Static Vite build ready for Vercel or another static host",
-    "No login, database, or student text storage in v1.0",
-    "No live AI API call in v1.0; feedback is rule-based with a future provider interface",
+    "Static Vite build ready for GitHub Pages",
+    "No login, database, or student text storage in v1.1",
+    "No live AI API call in v1.1; feedback is rule-based with a future provider interface",
     "English-only student-facing interface",
-    "Faculty-facing handoff and deployment documentation included in the repository",
+    "Faculty-facing handoff, test report, and v1.1 documentation included in the repository",
   ];
 
   const reviewQuestions = [
@@ -494,13 +488,36 @@ function ReviewView() {
     "Should any course-specific policies be added before a student pilot?",
   ];
 
+  const facultyChecklist = [
+    "Pedagogy fit: feedback teaches the reason for a correction",
+    "Academic integrity fit: the tool does not draft papers or invent source data",
+    "APA accuracy concerns: source examples and corrections need faculty review",
+    "Privacy concerns: no student text is stored or sent to an API in this version",
+    "Pilot readiness: use only after faculty approves examples and boundaries",
+  ];
+
+  const walkthroughSteps = [
+    "Open Build and choose Journal article with DOI to review the complete citation flow",
+    "Choose Missing author practice to confirm the tool blocks incomplete references",
+    "Open Check, run the sample, and reveal one correction after reading the hint",
+    "Open Learn, filter to AI citation/disclosure, and answer one practice prompt",
+    "Return to this page and review the pilot-readiness checklist before sharing with students",
+  ];
+
+  const notPilotReadyUntil = [
+    "Faculty approve the curated examples and source-type guidance",
+    "Course policy language is reviewed for AI disclosure expectations",
+    "Known citation test cases pass in CI",
+    "Students are told this is a coach, not a final APA validator",
+  ];
+
   return (
     <div className="learn-stack">
       <div className="section-heading">
         <p className="eyebrow">Faculty Review</p>
-        <h2>Ready for a professor-facing review</h2>
+        <h2>Ready for a professor-facing v1.1 review</h2>
         <p>
-          This v1.0 build is prepared for online delivery as a static site. It
+          This v1.1 build is prepared for online delivery as a static site. It
           keeps the learning boundary visible and makes the privacy posture easy
           to evaluate before any student pilot.
         </p>
@@ -509,7 +526,7 @@ function ReviewView() {
       <section className="review-hero">
         <div>
           <p className="eyebrow">Shareable version</p>
-          <h3>APA Coach v1.0</h3>
+          <h3>APA Coach v1.1</h3>
           <p>
             A learning-first APA support tool for building citations, checking
             citation attempts, and practicing APA rules without replacing student
@@ -559,6 +576,42 @@ function ReviewView() {
               <p key={question}>{question}</p>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="learn-panels">
+        <div className="checklist-panel">
+          <div className="panel-title">
+            <ListChecks size={20} />
+            <h3>Sample walkthrough</h3>
+          </div>
+          <ol>
+            {walkthroughSteps.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+        <div className="checklist-panel">
+          <div className="panel-title">
+            <ClipboardCheck size={20} />
+            <h3>Faculty review checklist</h3>
+          </div>
+          <ul>
+            {facultyChecklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="checklist-panel">
+          <div className="panel-title">
+            <ShieldCheck size={20} />
+            <h3>Not pilot-ready until</h3>
+          </div>
+          <ul>
+            {notPilotReadyUntil.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       </section>
     </div>

@@ -9,6 +9,12 @@ export type SourceType =
   | "generativeAI";
 
 export type Severity = "fix" | "check" | "ask";
+export type CitationStatus = "complete" | "incomplete";
+export type RuleTopic =
+  | "In-text citations"
+  | "References"
+  | "Paper setup"
+  | "AI citation/disclosure";
 
 export interface SourceInput {
   sourceType: SourceType;
@@ -22,6 +28,40 @@ export interface SourceInput {
   pages: string;
 }
 
+export type SourceField = keyof Omit<SourceInput, "sourceType">;
+
+export interface SourceFieldDefinition {
+  field: SourceField;
+  label: string;
+  required: boolean;
+  helper: string;
+  placeholder: string;
+  validationPattern?: string;
+}
+
+export interface SourceExample {
+  id: string;
+  label: string;
+  description: string;
+  input: SourceInput;
+}
+
+export interface SourceTypeConfig {
+  sourceType: SourceType;
+  label: string;
+  requiredFields: SourceField[];
+  optionalFields: SourceField[];
+  examples: SourceExample[];
+}
+
+export interface ValidationIssue {
+  field: SourceField | "sourceType";
+  severity: Severity;
+  message: string;
+  studentAction: string;
+  ruleId: string;
+}
+
 export interface CitationPart {
   label: string;
   value: string;
@@ -29,26 +69,47 @@ export interface CitationPart {
 }
 
 export interface CitationResult {
+  status: CitationStatus;
   reference: string;
   parenthetical: string;
   narrative: string;
   parts: CitationPart[];
   warnings: string[];
+  validationIssues: ValidationIssue[];
 }
 
 export interface CheckIssue {
   severity: Severity;
   message: string;
+  whyItMatters: string;
   hint: string;
+  studentAction: string;
   ruleId: string;
+  ruleSource: string;
   suggestedCorrection: string;
   confidence: "high" | "medium" | "low";
 }
 
 export interface RuleCard {
   id: string;
+  topic: RuleTopic;
   title: string;
   plainLanguageRule: string;
   example: string;
+  commonMistake: string;
+  studentAction: string;
+  askInstructorWhen: string;
   officialLink: string;
+}
+
+export interface PracticeChoice {
+  value: string;
+  feedback: string;
+}
+
+export interface PracticePrompt {
+  prompt: string;
+  choices: PracticeChoice[];
+  answer: string;
+  explanation: string;
 }
