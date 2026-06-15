@@ -176,7 +176,9 @@ h3 {
 .rule-card,
 .checklist-panel,
 .practice-panel,
-.review-hero {
+.review-hero,
+.settings-panel,
+.llm-result-panel {
   border: 1px solid #d7ded5;
   background: #ffffff;
   padding: 22px;
@@ -246,6 +248,49 @@ h3 {
   font-weight: 800;
 }
 
+.settings-panel {
+  margin-top: 18px;
+  background: #f9fbf6;
+}
+
+.settings-note,
+.success-note,
+.error-note,
+.review-needed {
+  margin: 10px 0 0;
+  border: 1px solid #dce4db;
+  background: #ffffff;
+  padding: 10px 12px;
+  color: #4f5b53;
+}
+
+.success-note {
+  border-color: #3a7d54;
+  background: #eef7ee;
+  color: #245236;
+}
+
+.error-note,
+.review-needed {
+  border-color: #a43f3f;
+  background: #fff0f0;
+  color: #7f2a2a;
+}
+
+.privacy-check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  margin: 10px 0 14px;
+  color: #34433a;
+  font-weight: 700;
+}
+
+.privacy-check input {
+  margin-top: 4px;
+}
+
 .result-column {
   display: grid;
   gap: 16px;
@@ -295,6 +340,12 @@ h3 {
 
 .secondary-button {
   padding: 10px 15px;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .citation-output {
@@ -429,6 +480,25 @@ h3 {
   border: 1px solid #becabe;
   background: #ffffff;
   padding: 12px;
+}
+
+.llm-result-panel {
+  display: grid;
+  gap: 14px;
+  background: #ffffff;
+}
+
+.compact-list {
+  border: 1px solid #dce4db;
+  background: #f9fbf6;
+  padding: 14px 16px;
+}
+
+.compact-list ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
 }
 
 .learn-stack {

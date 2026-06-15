@@ -1,7 +1,11 @@
 import type { CheckIssue } from "../types";
+import { detectCitationStyle } from "./styleDetection";
 
-function issue(params: CheckIssue): CheckIssue {
-  return params;
+function issue(params: Omit<CheckIssue, "source"> & Partial<Pick<CheckIssue, "source">>): CheckIssue {
+  return {
+    source: "rule",
+    ...params,
+  };
 }
 
 function hasYearOrNoDate(text: string): boolean {
@@ -59,6 +63,7 @@ function looksLikeOnlyAuthorDateTitle(text: string): boolean {
 export function diagnoseCitation(text: string): CheckIssue[] {
   const value = text.trim();
   const issues: CheckIssue[] = [];
+  const styleDetection = detectCitationStyle(value);
 
   if (!value) {
     return [
@@ -88,6 +93,44 @@ export function diagnoseCitation(text: string): CheckIssue[] {
         ruleSource: "APA Coach confidence boundary",
         suggestedCorrection: "No correction is suggested because the source type is unclear.",
         confidence: "low",
+      }),
+    );
+  }
+
+  if (styleDetection.guess === "mla") {
+    issues.push(
+      issue({
+        severity: "ask",
+        message: "This appears closer to MLA style than APA style.",
+        whyItMatters: "MLA and APA organize source information differently. APA usually starts references with author and date, while MLA often emphasizes author, title, container, and page details.",
+        hint: "Look for the original source metadata instead of trying to edit punctuation only.",
+        studentAction: "Rebuild the citation in APA using author, date, title, source/container, and DOI or URL when needed.",
+        ruleId: "style-detection",
+        ruleSource: "APA Coach style detection pre-check",
+        suggestedCorrection: "Use Build after confirming the original source details; this tool is not verifying the source or converting MLA automatically.",
+        confidence: styleDetection.confidence,
+        styleFamily: "mla",
+        evidence: styleDetection.evidence.join(" "),
+        needsInstructorReview: true,
+      }),
+    );
+  }
+
+  if (styleDetection.guess === "chicago") {
+    issues.push(
+      issue({
+        severity: "ask",
+        message: "This appears closer to Chicago style than APA style.",
+        whyItMatters: "Chicago notes and bibliography patterns do not use APA's author-date reference structure.",
+        hint: "Identify the source type and original metadata before attempting APA formatting.",
+        studentAction: "Rebuild the source as an APA reference instead of copying the Chicago order.",
+        ruleId: "style-detection",
+        ruleSource: "APA Coach style detection pre-check",
+        suggestedCorrection: "Use Build after confirming the original source details; this tool is not verifying the source or converting Chicago automatically.",
+        confidence: styleDetection.confidence,
+        styleFamily: "chicago",
+        evidence: styleDetection.evidence.join(" "),
+        needsInstructorReview: true,
       }),
     );
   }
@@ -304,7 +347,7 @@ export function diagnoseCitation(text: string): CheckIssue[] {
     issues.push(
       issue({
         severity: "check",
-        message: "No obvious v1.1 issues were found.",
+        message: "No obvious v1.2 rule-based issues were found.",
         whyItMatters: "Rule-based checks can miss APA details and cannot verify source truth.",
         hint: "Still compare the citation with your assignment directions and an APA example.",
         studentAction: "Verify the source metadata before using this as a final citation.",

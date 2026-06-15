@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   CheckCircle2,
@@ -17,7 +17,8 @@ import { checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./
 import { fieldDefinitions, sourceExamples, sourceTypeConfigs } from "./data/sourceExamples";
 import { aiFeedbackProvider } from "./lib/aiFeedbackProvider";
 import { buildCitation } from "./lib/citation";
-import type { CheckIssue, RuleTopic, SourceInput, SourceType } from "./types";
+import { enhanceCitationWithLlm, isLlmConfigured, testLlmConnection } from "./lib/llmFeedbackProvider";
+import type { CheckIssue, LlmCheckResult, LlmProviderConfig, RuleTopic, SourceInput, SourceType } from "./types";
 
 type Tab = "build" | "check" | "learn" | "review";
 
@@ -25,6 +26,16 @@ const publicBasePath = import.meta.env.BASE_URL;
 
 const sampleCheck =
   "Smith, J. The Article Title. Journal of Student Writing, 12(2).";
+const sampleMla =
+  'Smith, John. "Learning APA Style in First-Year Psychology." Journal of Student Writing, vol. 12, no. 2, 2024, pp. 45-61.';
+const llmStorageKey = "apa-coach-v1.2-llm-config";
+
+const defaultLlmConfig: LlmProviderConfig = {
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: "",
+  model: "",
+  compatibilityMode: "openaiChatCompletions",
+};
 
 const topicFilters: Array<"All" | RuleTopic> = [
   "All",
@@ -32,7 +43,24 @@ const topicFilters: Array<"All" | RuleTopic> = [
   "References",
   "Paper setup",
   "AI citation/disclosure",
+  "Citation style differences",
 ];
+
+function loadStoredLlmConfig(): LlmProviderConfig {
+  try {
+    const raw = window.sessionStorage.getItem(llmStorageKey);
+    if (!raw) return defaultLlmConfig;
+    const parsed = JSON.parse(raw) as Partial<LlmProviderConfig>;
+    return {
+      baseUrl: parsed.baseUrl ?? defaultLlmConfig.baseUrl,
+      apiKey: parsed.apiKey ?? "",
+      model: parsed.model ?? "",
+      compatibilityMode: "openaiChatCompletions",
+    };
+  } catch {
+    return defaultLlmConfig;
+  }
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
@@ -41,8 +69,18 @@ function App() {
   const [issues, setIssues] = useState<CheckIssue[]>([]);
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [llmConfig, setLlmConfig] = useState<LlmProviderConfig>(loadStoredLlmConfig);
+  const [llmResult, setLlmResult] = useState<LlmCheckResult | null>(null);
+  const [llmStatus, setLlmStatus] = useState<"idle" | "testing" | "enhancing">("idle");
+  const [llmError, setLlmError] = useState<string | null>(null);
+  const [llmMessage, setLlmMessage] = useState<string | null>(null);
+  const [llmPrivacyAccepted, setLlmPrivacyAccepted] = useState(false);
 
   const citation = useMemo(() => buildCitation(sourceInput), [sourceInput]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(llmStorageKey, JSON.stringify(llmConfig));
+  }, [llmConfig]);
 
   const updateField = (key: keyof SourceInput, value: string) => {
     setSourceInput((current) => ({
@@ -55,6 +93,38 @@ function App() {
     const nextIssues = await aiFeedbackProvider.diagnoseCitation(checkText);
     setIssues(nextIssues);
     setRevealed({});
+    setLlmResult(null);
+    setLlmError(null);
+    setLlmMessage(null);
+  };
+
+  const runLlmEnhancement = async () => {
+    setLlmStatus("enhancing");
+    setLlmError(null);
+    setLlmMessage(null);
+    try {
+      const result = await enhanceCitationWithLlm(checkText, llmConfig);
+      setLlmResult(result);
+    } catch (error) {
+      setLlmResult(null);
+      setLlmError(error instanceof Error ? error.message : "LLM enhancement failed.");
+    } finally {
+      setLlmStatus("idle");
+    }
+  };
+
+  const runLlmConnectionTest = async () => {
+    setLlmStatus("testing");
+    setLlmError(null);
+    setLlmMessage(null);
+    try {
+      const message = await testLlmConnection(llmConfig);
+      setLlmMessage(message);
+    } catch (error) {
+      setLlmError(error instanceof Error ? error.message : "Connection test failed.");
+    } finally {
+      setLlmStatus("idle");
+    }
   };
 
   const copyValue = async (label: string, value: string) => {
@@ -72,7 +142,7 @@ function App() {
               <GraduationCap size={24} />
             </div>
             <div>
-              <p className="eyebrow">v1.1 review build</p>
+              <p className="eyebrow">v1.2 review build</p>
               <h1>APA Coach</h1>
             </div>
           </div>
@@ -135,8 +205,18 @@ function App() {
             <CheckView
               checkText={checkText}
               issues={issues}
+              llmConfig={llmConfig}
+              llmError={llmError}
+              llmMessage={llmMessage}
+              llmPrivacyAccepted={llmPrivacyAccepted}
+              llmResult={llmResult}
+              llmStatus={llmStatus}
               revealed={revealed}
+              runLlmConnectionTest={runLlmConnectionTest}
+              runLlmEnhancement={runLlmEnhancement}
               runCheck={runCheck}
+              setLlmConfig={setLlmConfig}
+              setLlmPrivacyAccepted={setLlmPrivacyAccepted}
               setCheckText={setCheckText}
               setRevealed={setRevealed}
             />
@@ -286,18 +366,40 @@ function BuildView({
 function CheckView({
   checkText,
   issues,
+  llmConfig,
+  llmError,
+  llmMessage,
+  llmPrivacyAccepted,
+  llmResult,
+  llmStatus,
   revealed,
+  runLlmConnectionTest,
+  runLlmEnhancement,
   runCheck,
+  setLlmConfig,
+  setLlmPrivacyAccepted,
   setCheckText,
   setRevealed,
 }: {
   checkText: string;
   issues: CheckIssue[];
+  llmConfig: LlmProviderConfig;
+  llmError: string | null;
+  llmMessage: string | null;
+  llmPrivacyAccepted: boolean;
+  llmResult: LlmCheckResult | null;
+  llmStatus: "idle" | "testing" | "enhancing";
   revealed: Record<number, boolean>;
+  runLlmConnectionTest: () => Promise<void>;
+  runLlmEnhancement: () => Promise<void>;
   runCheck: () => Promise<void>;
+  setLlmConfig: React.Dispatch<React.SetStateAction<LlmProviderConfig>>;
+  setLlmPrivacyAccepted: (value: boolean) => void;
   setCheckText: (value: string) => void;
   setRevealed: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
 }) {
+  const llmReady = isLlmConfigured(llmConfig);
+
   return (
     <div className="view-grid">
       <section className="editor-column">
@@ -322,7 +424,90 @@ function CheckView({
           <button className="secondary-button" type="button" onClick={() => setCheckText(sampleCheck)}>
             Use sample
           </button>
+          <button className="secondary-button" type="button" onClick={() => setCheckText(sampleMla)}>
+            Use MLA sample
+          </button>
         </div>
+
+        <section className="settings-panel" aria-label="LLM Settings">
+          <div className="section-heading compact">
+            <p className="eyebrow">Optional BYOK</p>
+            <h3>LLM Settings</h3>
+            <p>Use your own OpenAI-compatible API only when you choose to enhance feedback.</p>
+          </div>
+          <label className="field-block">
+            <span>Base URL</span>
+            <input
+              value={llmConfig.baseUrl}
+              placeholder="https://api.openai.com/v1"
+              onChange={(event) =>
+                setLlmConfig((current) => ({
+                  ...current,
+                  baseUrl: event.target.value,
+                }))
+              }
+            />
+            <small>Use an OpenAI-compatible endpoint that allows browser requests.</small>
+          </label>
+          <label className="field-block">
+            <span>API key</span>
+            <input
+              type="password"
+              value={llmConfig.apiKey}
+              placeholder="Session-only key"
+              onChange={(event) =>
+                setLlmConfig((current) => ({
+                  ...current,
+                  apiKey: event.target.value,
+                }))
+              }
+            />
+            <small>The key is stored in sessionStorage, not in this repository or a database.</small>
+          </label>
+          <label className="field-block">
+            <span>Model</span>
+            <input
+              value={llmConfig.model}
+              placeholder="Enter your model name"
+              onChange={(event) =>
+                setLlmConfig((current) => ({
+                  ...current,
+                  model: event.target.value,
+                }))
+              }
+            />
+            <small>Use the model name required by your provider.</small>
+          </label>
+          <label className="privacy-check">
+            <input
+              checked={llmPrivacyAccepted}
+              onChange={(event) => setLlmPrivacyAccepted(event.target.checked)}
+              type="checkbox"
+            />
+            <span>I understand student text will be sent to my configured provider when I use LLM enhancement.</span>
+          </label>
+          <div className="button-row">
+            <button
+              className="secondary-button"
+              disabled={!llmReady || llmStatus !== "idle"}
+              onClick={runLlmConnectionTest}
+              type="button"
+            >
+              Test connection
+            </button>
+            <button
+              className="primary-button"
+              disabled={!llmReady || !llmPrivacyAccepted || !checkText.trim() || llmStatus !== "idle"}
+              onClick={runLlmEnhancement}
+              type="button"
+            >
+              {llmStatus === "enhancing" ? "Enhancing..." : "Enhance with my LLM"}
+            </button>
+          </div>
+          {!llmReady && <p className="settings-note">Add a base URL, API key, and model to enable LLM enhancement.</p>}
+          {llmMessage && <p className="success-note">{llmMessage}</p>}
+          {llmError && <p className="error-note">{llmError}</p>}
+        </section>
       </section>
 
       <section className="result-column" aria-live="polite">
@@ -341,7 +526,7 @@ function CheckView({
             {issues.map((issue, index) => (
               <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${issue.message}`}>
                 <div className="issue-topline">
-                  <span>{issue.severity}</span>
+                  <span>{issue.severity} · {issue.source}</span>
                   <small>{issue.confidence} confidence</small>
                 </div>
                 <h3>{issue.message}</h3>
@@ -349,6 +534,9 @@ function CheckView({
                 <p>{issue.hint}</p>
                 <p><strong>Student action:</strong> {issue.studentAction}</p>
                 <p className="rule-source">Rule source: {issue.ruleSource}</p>
+                {issue.styleFamily && <p className="rule-source">Detected style: {issue.styleFamily.toUpperCase()}</p>}
+                {issue.evidence && <p className="rule-source">Evidence: {issue.evidence}</p>}
+                {issue.needsInstructorReview && <p className="review-needed">Instructor or source review needed before using this as final APA guidance.</p>}
                 <button
                   className="reveal-button"
                   type="button"
@@ -366,6 +554,49 @@ function CheckView({
               </article>
             ))}
           </div>
+        )}
+
+        {llmResult && (
+          <section className="llm-result-panel">
+            <div className="issue-topline">
+              <span>LLM enhancement</span>
+              <small>{llmResult.confidence} confidence</small>
+            </div>
+            <h3>{llmResult.summary}</h3>
+            <p className="rule-source">Detected style: {llmResult.styleGuess.toUpperCase()}</p>
+            <div className="issue-list">
+              {llmResult.issues.map((issue, index) => (
+                <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${index}`}>
+                  <div className="issue-topline">
+                    <span>{issue.severity} · llm</span>
+                    <small>{issue.confidence} confidence</small>
+                  </div>
+                  <h3>{issue.message}</h3>
+                  <p><strong>Why it matters:</strong> {issue.whyItMatters}</p>
+                  <p>{issue.hint}</p>
+                  <p><strong>Student action:</strong> {issue.studentAction}</p>
+                  {issue.evidence && <p className="rule-source">Evidence: {issue.evidence}</p>}
+                </article>
+              ))}
+            </div>
+            {llmResult.nextSteps.length > 0 && (
+              <div className="compact-list">
+                <h3>Next steps</h3>
+                <ul>
+                  {llmResult.nextSteps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {llmResult.safetyNotes.length > 0 && (
+              <div className="warning-list">
+                {llmResult.safetyNotes.map((note) => (
+                  <p key={note}>{note}</p>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </section>
     </div>
@@ -475,10 +706,11 @@ function LearnView() {
 function ReviewView() {
   const readinessItems = [
     "Static Vite build ready for GitHub Pages",
-    "No login, database, or student text storage in v1.1",
-    "No live AI API call in v1.1; feedback is rule-based with a future provider interface",
+    "No login, database, backend, or student text persistence in v1.2",
+    "Optional BYOK LLM enhancement is client-side, manual, and session-only",
+    "Rule-based diagnosis remains available without any LLM configuration",
     "English-only student-facing interface",
-    "Faculty-facing handoff, test report, and v1.1 documentation included in the repository",
+    "Faculty-facing handoff, test report, v1.1 plan, and v1.2 BYOK guide included in the repository",
   ];
 
   const reviewQuestions = [
@@ -492,14 +724,16 @@ function ReviewView() {
     "Pedagogy fit: feedback teaches the reason for a correction",
     "Academic integrity fit: the tool does not draft papers or invent source data",
     "APA accuracy concerns: source examples and corrections need faculty review",
-    "Privacy concerns: no student text is stored or sent to an API in this version",
-    "Pilot readiness: use only after faculty approves examples and boundaries",
+    "Privacy concerns: LLM enhancement sends text only after manual user action and never stores it in this app",
+    "Pilot readiness: do not use public student BYOK until faculty policy approves it",
   ];
 
   const walkthroughSteps = [
     "Open Build and choose Journal article with DOI to review the complete citation flow",
     "Choose Missing author practice to confirm the tool blocks incomplete references",
     "Open Check, run the sample, and reveal one correction after reading the hint",
+    "Use the MLA sample to confirm style detection explains APA versus MLA",
+    "Review LLM Settings without entering a real key unless you intend to test your own provider",
     "Open Learn, filter to AI citation/disclosure, and answer one practice prompt",
     "Return to this page and review the pilot-readiness checklist before sharing with students",
   ];
@@ -508,6 +742,7 @@ function ReviewView() {
     "Faculty approve the curated examples and source-type guidance",
     "Course policy language is reviewed for AI disclosure expectations",
     "Known citation test cases pass in CI",
+    "BYOK key handling and provider CORS limits are explained to reviewers",
     "Students are told this is a coach, not a final APA validator",
   ];
 
@@ -515,18 +750,18 @@ function ReviewView() {
     <div className="learn-stack">
       <div className="section-heading">
         <p className="eyebrow">Faculty Review</p>
-        <h2>Ready for a professor-facing v1.1 review</h2>
+        <h2>Ready for a professor-facing v1.2 review</h2>
         <p>
-          This v1.1 build is prepared for online delivery as a static site. It
-          keeps the learning boundary visible and makes the privacy posture easy
-          to evaluate before any student pilot.
+          This v1.2 build keeps the static GitHub Pages deployment while adding
+          citation style detection and optional user-provided LLM enhancement.
+          It is still a review build, not a public student pilot.
         </p>
       </div>
 
       <section className="review-hero">
         <div>
           <p className="eyebrow">Shareable version</p>
-          <h3>APA Coach v1.1</h3>
+          <h3>APA Coach v1.2</h3>
           <p>
             A learning-first APA support tool for building citations, checking
             citation attempts, and practicing APA rules without replacing student
@@ -548,6 +783,10 @@ function ReviewView() {
           </a>
           <a href={`${publicBasePath}docs/v1.1-upgrade-plan.md`} target="_blank" rel="noreferrer">
             v1.1 plan
+            <ExternalLink size={16} />
+          </a>
+          <a href={`${publicBasePath}docs/v1.2-llm-byok-guide.md`} target="_blank" rel="noreferrer">
+            v1.2 BYOK guide
             <ExternalLink size={16} />
           </a>
         </div>

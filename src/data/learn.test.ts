@@ -6,6 +6,7 @@ const expectedTopics = [
   "References",
   "Paper setup",
   "AI citation/disclosure",
+  "Citation style differences",
 ];
 
 describe("learn module data", () => {

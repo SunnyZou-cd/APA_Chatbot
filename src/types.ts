@@ -10,11 +10,13 @@ export type SourceType =
 
 export type Severity = "fix" | "check" | "ask";
 export type CitationStatus = "complete" | "incomplete";
+export type CitationStyleGuess = "apa" | "mla" | "chicago" | "unknown";
 export type RuleTopic =
   | "In-text citations"
   | "References"
   | "Paper setup"
-  | "AI citation/disclosure";
+  | "AI citation/disclosure"
+  | "Citation style differences";
 
 export interface SourceInput {
   sourceType: SourceType;
@@ -79,6 +81,7 @@ export interface CitationResult {
 }
 
 export interface CheckIssue {
+  source: "rule" | "llm";
   severity: Severity;
   message: string;
   whyItMatters: string;
@@ -87,6 +90,33 @@ export interface CheckIssue {
   ruleId: string;
   ruleSource: string;
   suggestedCorrection: string;
+  confidence: "high" | "medium" | "low";
+  styleFamily?: CitationStyleGuess;
+  evidence?: string;
+  needsInstructorReview?: boolean;
+}
+
+export interface CitationStyleDetection {
+  guess: CitationStyleGuess;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+  message: string;
+  studentAction: string;
+}
+
+export interface LlmProviderConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  compatibilityMode: "openaiChatCompletions";
+}
+
+export interface LlmCheckResult {
+  summary: string;
+  styleGuess: CitationStyleGuess;
+  issues: CheckIssue[];
+  nextSteps: string[];
+  safetyNotes: string[];
   confidence: "high" | "medium" | "low";
 }
 

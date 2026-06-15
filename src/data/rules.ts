@@ -71,6 +71,31 @@ export const ruleCards: RuleCard[] = [
     officialLink:
       "https://apastyle.apa.org/blog/how-to-cite-chatgpt",
   },
+  {
+    id: "style-detection",
+    topic: "Citation style differences",
+    title: "APA is an author-date style",
+    plainLanguageRule:
+      "APA references usually begin with author and date. MLA and Chicago often organize the same source details in a different order.",
+    example:
+      "APA starts like: Smith, J. (2024). MLA often starts like: Smith, John. \"Title.\"",
+    commonMistake: "Trying to fix an MLA citation by changing punctuation instead of rebuilding the source in APA order.",
+    studentAction: "Identify the original source metadata, then rebuild the reference using the APA source type.",
+    askInstructorWhen: "The assignment accepts multiple styles or gives course-specific citation rules.",
+    officialLink: "https://apastyle.apa.org/style-grammar-guidelines/references/examples",
+  },
+  {
+    id: "mla-vs-apa",
+    topic: "Citation style differences",
+    title: "MLA author-page is not APA author-date",
+    plainLanguageRule:
+      "MLA in-text citations often use author and page number, while APA in-text citations usually use author and year.",
+    example: "MLA: (Smith 45). APA: (Smith, 2024).",
+    commonMistake: "Submitting an author-page citation when the assignment asks for APA.",
+    studentAction: "Find the publication year and rebuild the in-text citation in APA author-date format.",
+    askInstructorWhen: "You cannot locate a date or the assignment asks for page numbers in a specific way.",
+    officialLink: "https://apastyle.apa.org/style-grammar-guidelines/citations",
+  },
 ];
 
 export const checklistItems = [
