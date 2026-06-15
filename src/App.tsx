@@ -20,6 +20,8 @@ import type { CheckIssue, SourceInput, SourceType } from "./types";
 
 type Tab = "build" | "check" | "learn" | "review";
 
+const publicBasePath = import.meta.env.BASE_URL;
+
 const emptyInput: SourceInput = {
   sourceType: "journalArticle",
   author: "Smith, J.",
@@ -136,10 +138,10 @@ function App() {
       <section className="workspace">
         <aside className="sidebar" aria-label="APA Coach navigation">
           <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
+          <div className="brand-mark" aria-hidden="true">
               <GraduationCap size={24} />
             </div>
-          <div>
+            <div>
               <p className="eyebrow">v1.0 review build</p>
               <h1>APA Coach</h1>
             </div>
@@ -515,12 +517,20 @@ function ReviewView() {
           </p>
         </div>
         <div className="review-actions">
-          <a href="/docs/professor-handoff.md" target="_blank" rel="noreferrer">
+          <a href={`${publicBasePath}docs/professor-handoff.md`} target="_blank" rel="noreferrer">
             Handoff notes
             <ExternalLink size={16} />
           </a>
-          <a href="/docs/deployment-guide.md" target="_blank" rel="noreferrer">
+          <a href={`${publicBasePath}docs/deployment-guide.md`} target="_blank" rel="noreferrer">
             Deployment guide
+            <ExternalLink size={16} />
+          </a>
+          <a href={`${publicBasePath}docs/v1.0-functional-test-report.md`} target="_blank" rel="noreferrer">
+            Test report
+            <ExternalLink size={16} />
+          </a>
+          <a href={`${publicBasePath}docs/v1.1-upgrade-plan.md`} target="_blank" rel="noreferrer">
+            v1.1 plan
             <ExternalLink size={16} />
           </a>
         </div>

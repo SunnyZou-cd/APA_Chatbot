@@ -73,7 +73,7 @@ export class RuleBasedFeedbackProvider implements AiFeedbackProvider {
     if (issues.length === 0) {
       issues.push({
         severity: "check",
-        message: "No obvious v0.0 issues were found.",
+        message: "No obvious v1.0 issues were found.",
         hint: "Still compare the citation with your assignment directions and an APA example.",
         ruleId: "author-date",
         suggestedCorrection: value,
