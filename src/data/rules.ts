@@ -58,6 +58,31 @@ export const ruleCards: RuleCard[] = [
       "https://apastyle.apa.org/style-grammar-guidelines/paper-format/reference-list",
   },
   {
+    id: "document-check",
+    topic: "Document check",
+    title: "Whole-document review still needs human judgment",
+    plainLanguageRule:
+      "A browser prototype can find citation patterns and reference-list signals, but it cannot guarantee font, spacing, headings, title page, or hanging-indent accuracy after extraction.",
+    example: "DOCX/PDF upload can flag likely issues, then ask the student to verify layout in Google Docs or Word.",
+    commonMistake: "Treating extracted-text feedback as a final APA formatting approval.",
+    studentAction: "Use the document check as a teaching review, then manually compare layout-sensitive items with APA examples and assignment directions.",
+    askInstructorWhen: "The assignment has a template, course-specific title page, or modified APA requirements.",
+    officialLink:
+      "https://owl.purdue.edu/owl/research_and_citation/apa_style/apa_formatting_and_style_guide/index.html",
+  },
+  {
+    id: "initials-spacing",
+    topic: "References",
+    title: "Separate multiple author initials",
+    plainLanguageRule:
+      "When an author has more than one initial, each initial keeps its period and the initials are separated with spaces.",
+    example: "Lacy, J. T. (2024).",
+    commonMistake: "Compressing initials as J.T. instead of J. T.",
+    studentAction: "Review the author element in each reference entry before checking the rest of the format.",
+    askInstructorWhen: "A name includes hyphenated initials, suffixes, or multiple family-name parts.",
+    officialLink: "https://apastyle.apa.org/instructional-aids/reference-examples.pdf",
+  },
+  {
     id: "ai-disclosure",
     topic: "AI citation/disclosure",
     title: "AI use may require citation and disclosure",

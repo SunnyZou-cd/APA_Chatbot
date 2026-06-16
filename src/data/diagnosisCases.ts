@@ -24,7 +24,13 @@ export const diagnosisCases: DiagnosisCase[] = [
     id: "title-case-article",
     label: "Title case article title",
     input: "Smith, J. (2024). Learning APA Style In First-Year Psychology. Journal of Student Writing, 12(2), 45-61.",
-    expectedRuleIds: ["sentence-case"],
+    expectedRuleIds: ["sentence-case", "italics-source-type"],
+  },
+  {
+    id: "compressed-author-initials",
+    label: "Compressed author initials",
+    input: "Lacy, J.T. (2024). Learning APA style in first-year psychology. Journal of Student Writing, 12(2), 45-61. https://doi.org/10.1037/example",
+    expectedRuleIds: ["author-initials-spacing"],
   },
   {
     id: "missing-volume-pages",

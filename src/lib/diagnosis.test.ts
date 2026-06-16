@@ -11,7 +11,7 @@ describe("citation diagnosis rules", () => {
     }
   });
 
-  it("uses low confidence when a reference appears complete but cannot be verified", () => {
+  it("uses source-type italics guidance when a reference otherwise appears complete", () => {
     const testCase = diagnosisCases.find((item) => item.id === "valid-ish-reference");
     if (!testCase) {
       throw new Error("Missing valid-ish-reference diagnosis case");
@@ -19,13 +19,15 @@ describe("citation diagnosis rules", () => {
 
     const issues = diagnoseCitation(testCase.input);
 
-    expect(issues).toEqual([
-      expect.objectContaining({
-        confidence: "low",
-        ruleId: "uncertain",
-        message: "No obvious v1.2 rule-based issues were found.",
-      }),
-    ]);
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          confidence: "medium",
+          ruleId: "italics-source-type",
+          message: "Journal article references need source-type-specific italics.",
+        }),
+      ]),
+    );
   });
 
   it("returns structured feedback fields for every diagnosis issue", () => {
@@ -73,6 +75,29 @@ describe("citation diagnosis rules", () => {
           ruleId: "style-detection",
           styleFamily: "mla",
           message: "This appears closer to MLA style than APA style.",
+        }),
+      ]),
+    );
+  });
+
+  it("does not flag correctly spaced author initials", () => {
+    const issues = diagnoseCitation(
+      "Lacy, J. T. (2024). Learning APA style in first-year psychology. Journal of Student Writing, 12(2), 45-61. https://doi.org/10.1037/example",
+    );
+
+    expect(issues.some((issue) => issue.ruleId === "author-initials-spacing")).toBe(false);
+  });
+
+  it("gives source-type-specific italics guidance for journal references", () => {
+    const issues = diagnoseCitation(
+      "Smith, J. (2024). Learning APA style in first-year psychology. Journal of Student Writing, 12(2), 45-61. https://doi.org/10.1037/example",
+    );
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "italics-source-type",
+          message: "Journal article references need source-type-specific italics.",
         }),
       ]),
     );

@@ -1,5 +1,5 @@
 import { fieldDefinitions, sourceTypeConfigs } from "../data/sourceExamples";
-import type { CitationResult, SourceField, SourceInput, ValidationIssue } from "../types";
+import type { CitationResult, FormattedReferencePart, SourceField, SourceInput, ValidationIssue } from "../types";
 
 function clean(value: string): string {
   return value.trim();
@@ -30,6 +30,25 @@ function formatDoiOrUrl(input: SourceInput): string {
     return doi.startsWith("http") ? doi : `https://doi.org/${doi}`;
   }
   return url;
+}
+
+function plainText(parts: FormattedReferencePart[]): string {
+  return parts.map((part) => part.text).join("").replace(/\s+/g, " ").trim();
+}
+
+function locatorParts(locator: string): FormattedReferencePart[] {
+  const value = clean(locator);
+  if (!value) return [];
+  const match = value.match(/^(\d+)(\([^)]*\))?(.*)$/);
+  if (!match) {
+    return [{ text: value }];
+  }
+
+  return [
+    { text: match[1] ?? "", italic: true },
+    { text: match[2] ?? "" },
+    { text: match[3] ?? "" },
+  ].filter((part) => part.text.length > 0);
 }
 
 function fieldLabel(field: SourceField): string {
@@ -110,6 +129,7 @@ function incompleteResult(input: SourceInput, validationIssues: ValidationIssue[
   return {
     status: "incomplete",
     reference: "Incomplete citation",
+    formattedReferenceParts: [{ text: "Incomplete citation" }],
     parenthetical: "Incomplete in-text citation",
     narrative: "Incomplete narrative citation",
     warnings: validationIssues.map((issue) => issue.message),
@@ -149,36 +169,73 @@ export function buildCitation(input: SourceInput): CitationResult {
 
   const title = ensurePeriod(data.title);
   const retrieval = formatDoiOrUrl(data);
-  let reference = "";
+  let formattedReferenceParts: FormattedReferencePart[] = [];
 
   switch (data.sourceType) {
     case "book":
-      reference = `${data.author} (${data.date}). ${title} ${data.publisher}.${retrieval ? ` ${retrieval}` : ""}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ` },
+        { text: title, italic: true },
+        { text: ` ${data.publisher}.` },
+        ...(retrieval ? [{ text: ` ${retrieval}` }] : []),
+      ];
       break;
     case "bookChapter":
-      reference = `${data.author} (${data.date}). ${title} In ${data.source}${data.pages ? ` (pp. ${data.pages})` : ""}. ${data.publisher}.${retrieval ? ` ${retrieval}` : ""}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ${title} In ` },
+        { text: data.source, italic: true },
+        ...(data.pages ? [{ text: ` (pp. ${data.pages})` }] : []),
+        { text: `. ${data.publisher}.` },
+        ...(retrieval ? [{ text: ` ${retrieval}` }] : []),
+      ];
       break;
     case "webpage":
-      reference = `${data.author} (${data.date}). ${title} ${data.source}. ${retrieval}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ` },
+        { text: title, italic: true },
+        { text: ` ${data.source}. ${retrieval}` },
+      ];
       break;
     case "report":
-      reference = `${data.author} (${data.date}). ${title} ${data.publisher}.${retrieval ? ` ${retrieval}` : ""}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ` },
+        { text: title, italic: true },
+        { text: ` ${data.publisher}.` },
+        ...(retrieval ? [{ text: ` ${retrieval}` }] : []),
+      ];
       break;
     case "video":
-      reference = `${data.author} (${data.date}). ${title} [Video]. ${data.source}. ${retrieval}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ` },
+        { text: title, italic: true },
+        { text: ` [Video]. ${data.source}. ${retrieval}` },
+      ];
       break;
     case "courseMaterial":
-      reference = `${data.author} (${data.date}). ${title} [Course material]. ${data.source}.`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ${title} [Course material]. ${data.source}.` },
+      ];
       break;
     case "generativeAI":
-      reference = `${data.author} (${data.date}). ${title} [Large language model]. ${data.source}. ${retrieval}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ` },
+        { text: title, italic: true },
+        { text: ` [Large language model]. ${data.source}. ${retrieval}` },
+      ];
       break;
     case "journalArticle":
     default:
-      reference = `${data.author} (${data.date}). ${title} ${data.source}${data.pages ? `, ${data.pages}` : ""}.${retrieval ? ` ${retrieval}` : ""}`.trim();
+      formattedReferenceParts = [
+        { text: `${data.author} (${data.date}). ${title} ` },
+        { text: data.source, italic: true },
+        ...(data.pages ? [{ text: ", " }, ...locatorParts(data.pages)] : []),
+        { text: "." },
+        ...(retrieval ? [{ text: ` ${retrieval}` }] : []),
+      ];
       break;
   }
 
+  const reference = plainText(formattedReferenceParts);
   const textAuthor = authorForText(data.author);
   const warnings = validationIssues.map((issue) => issue.message);
   if (data.sourceType === "generativeAI") {
@@ -188,6 +245,7 @@ export function buildCitation(input: SourceInput): CitationResult {
   return {
     status: "complete",
     reference,
+    formattedReferenceParts,
     parenthetical: `(${textAuthor}, ${data.date})`,
     narrative: `${textAuthor} (${data.date})`,
     parts: [

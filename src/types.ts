@@ -15,6 +15,7 @@ export type RuleTopic =
   | "In-text citations"
   | "References"
   | "Paper setup"
+  | "Document check"
   | "AI citation/disclosure"
   | "Citation style differences";
 
@@ -70,9 +71,15 @@ export interface CitationPart {
   explanation: string;
 }
 
+export interface FormattedReferencePart {
+  text: string;
+  italic?: boolean;
+}
+
 export interface CitationResult {
   status: CitationStatus;
   reference: string;
+  formattedReferenceParts: FormattedReferencePart[];
   parenthetical: string;
   narrative: string;
   parts: CitationPart[];
@@ -118,6 +125,44 @@ export interface LlmCheckResult {
   nextSteps: string[];
   safetyNotes: string[];
   confidence: "high" | "medium" | "low";
+}
+
+export type UploadedDocumentKind = "docx" | "pdf" | "text";
+
+export interface DocumentCheckIssue {
+  severity: Severity;
+  category:
+    | "title page"
+    | "font/spacing"
+    | "headings"
+    | "in-text citations"
+    | "references"
+    | "reference formatting";
+  message: string;
+  whyItMatters: string;
+  studentAction: string;
+  ruleId:
+    | "document-title-page"
+    | "document-spacing-font"
+    | "document-headings"
+    | "citation-reference-match"
+    | "author-initials-spacing"
+    | "doi-url"
+    | "sentence-case"
+    | "italics-source-type";
+  confidence: "high" | "medium" | "low";
+  evidence?: string;
+}
+
+export interface DocumentCheckResult {
+  kind: UploadedDocumentKind;
+  sourceName: string;
+  wordCount: number;
+  characterCount: number;
+  hasReferencesSection: boolean;
+  issues: DocumentCheckIssue[];
+  manualReviewChecklist: DocumentCheckIssue[];
+  privacyNote: string;
 }
 
 export interface RuleCard {

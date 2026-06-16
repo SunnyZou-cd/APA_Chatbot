@@ -18,8 +18,42 @@ describe("citation builder validation", () => {
     expect(result.status).toBe("complete");
     expect(result.reference).toContain("Smith, J., & Lee, R. (2024).");
     expect(result.reference).toContain("https://doi.org/10.1037/example");
+    expect(result.formattedReferenceParts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: "Journal of Student Writing", italic: true }),
+        expect.objectContaining({ text: "12", italic: true }),
+      ]),
+    );
     expect(result.parenthetical).toBe("(Smith, 2024)");
     expect(result.narrative).toBe("Smith (2024)");
+  });
+
+  it("keeps plain-text reference copy separate from formatted display parts", () => {
+    const result = buildCitation(example("journal-doi"));
+    const displayedText = result.formattedReferenceParts.map((part) => part.text).join("");
+
+    expect(result.reference).toBe(displayedText);
+    expect(result.reference).not.toContain("<em>");
+  });
+
+  it("italicizes book titles as standalone works", () => {
+    const result = buildCitation(example("book"));
+
+    expect(result.formattedReferenceParts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: "Research writing for psychology students.", italic: true }),
+      ]),
+    );
+  });
+
+  it("italicizes webpage titles in the v1.3 formatted display", () => {
+    const result = buildCitation(example("web-no-date"));
+
+    expect(result.formattedReferenceParts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: "APA formatting and style guide.", italic: true }),
+      ]),
+    );
   });
 
   it("does not invent missing DOI or URL for journal articles", () => {

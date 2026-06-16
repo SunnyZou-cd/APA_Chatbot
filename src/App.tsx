@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  FileText,
   GraduationCap,
   ListChecks,
   Rocket,
@@ -17,10 +18,21 @@ import { checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./
 import { fieldDefinitions, sourceExamples, sourceTypeConfigs } from "./data/sourceExamples";
 import { aiFeedbackProvider } from "./lib/aiFeedbackProvider";
 import { buildCitation } from "./lib/citation";
+import { checkDocumentText } from "./lib/documentCheck";
 import { enhanceCitationWithLlm, isLlmConfigured, testLlmConnection } from "./lib/llmFeedbackProvider";
-import type { CheckIssue, LlmCheckResult, LlmProviderConfig, RuleTopic, SourceInput, SourceType } from "./types";
+import type {
+  CheckIssue,
+  DocumentCheckResult,
+  FormattedReferencePart,
+  LlmCheckResult,
+  LlmProviderConfig,
+  RuleTopic,
+  SourceInput,
+  SourceType,
+  UploadedDocumentKind,
+} from "./types";
 
-type Tab = "build" | "check" | "learn" | "review";
+type Tab = "build" | "check" | "document" | "learn" | "review";
 
 const publicBasePath = import.meta.env.BASE_URL;
 
@@ -28,7 +40,14 @@ const sampleCheck =
   "Smith, J. The Article Title. Journal of Student Writing, 12(2).";
 const sampleMla =
   'Smith, John. "Learning APA Style in First-Year Psychology." Journal of Student Writing, vol. 12, no. 2, 2024, pp. 45-61.';
-const llmStorageKey = "apa-coach-v1.2-llm-config";
+const llmStorageKey = "apa-coach-v1.3-llm-config";
+const sampleDocumentText = `APA Practice Paper
+
+Students need structured APA feedback when they practice citations (Lacy, 2024). Citation tools should explain uncertainty instead of acting like final validators (Smith, 2023).
+
+References
+Lacy, J.T. (2024). Learning APA Style In First-Year Psychology. Journal of Student Writing, 12(2), 45-61. doi:10.1037/example
+Brown, T. (2021). Research writing for psychology students. Academic Press.`;
 
 const defaultLlmConfig: LlmProviderConfig = {
   baseUrl: "https://api.openai.com/v1",
@@ -42,9 +61,49 @@ const topicFilters: Array<"All" | RuleTopic> = [
   "In-text citations",
   "References",
   "Paper setup",
+  "Document check",
   "AI citation/disclosure",
   "Citation style differences",
 ];
+
+function fileKind(file: File): UploadedDocumentKind {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".docx")) return "docx";
+  if (name.endsWith(".pdf")) return "pdf";
+  return "text";
+}
+
+async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
+  const pdfjs = await import("pdfjs-dist");
+  const workerModule = await import("pdfjs-dist/build/pdf.worker.mjs?url");
+  pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
+  const document = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const pages: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+  }
+
+  return pages.join("\n\n");
+}
+
+async function extractDocumentText(file: File): Promise<{ kind: UploadedDocumentKind; text: string }> {
+  const kind = fileKind(file);
+  if (kind === "text") {
+    return { kind, text: await file.text() };
+  }
+
+  const buffer = await file.arrayBuffer();
+  if (kind === "docx") {
+    const mammoth = await import("mammoth/mammoth.browser");
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    return { kind, text: result.value };
+  }
+
+  return { kind, text: await extractPdfText(buffer) };
+}
 
 function loadStoredLlmConfig(): LlmProviderConfig {
   try {
@@ -75,6 +134,10 @@ function App() {
   const [llmError, setLlmError] = useState<string | null>(null);
   const [llmMessage, setLlmMessage] = useState<string | null>(null);
   const [llmPrivacyAccepted, setLlmPrivacyAccepted] = useState(false);
+  const [documentText, setDocumentText] = useState(sampleDocumentText);
+  const [documentResult, setDocumentResult] = useState<DocumentCheckResult | null>(null);
+  const [documentStatus, setDocumentStatus] = useState<"idle" | "reading">("idle");
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   const citation = useMemo(() => buildCitation(sourceInput), [sourceInput]);
 
@@ -127,6 +190,26 @@ function App() {
     }
   };
 
+  const runDocumentCheck = (text = documentText, kind: UploadedDocumentKind = "text", sourceName = "Pasted text") => {
+    setDocumentResult(checkDocumentText(text, kind, sourceName));
+    setDocumentError(null);
+  };
+
+  const readDocumentFile = async (file: File) => {
+    setDocumentStatus("reading");
+    setDocumentError(null);
+    try {
+      const extracted = await extractDocumentText(file);
+      setDocumentText(extracted.text);
+      runDocumentCheck(extracted.text, extracted.kind, file.name);
+    } catch (error) {
+      setDocumentResult(null);
+      setDocumentError(error instanceof Error ? error.message : "The file could not be read in this browser session.");
+    } finally {
+      setDocumentStatus("idle");
+    }
+  };
+
   const copyValue = async (label: string, value: string) => {
     await navigator.clipboard.writeText(value);
     setCopied(label);
@@ -142,7 +225,7 @@ function App() {
               <GraduationCap size={24} />
             </div>
             <div>
-              <p className="eyebrow">v1.2 review build</p>
+              <p className="eyebrow">v1.3 review build</p>
               <h1>APA Coach</h1>
             </div>
           </div>
@@ -163,6 +246,14 @@ function App() {
             >
               <ClipboardCheck size={18} />
               Check
+            </button>
+            <button
+              className={activeTab === "document" ? "tab-button active" : "tab-button"}
+              onClick={() => setActiveTab("document")}
+              type="button"
+            >
+              <FileText size={18} />
+              Document Check
             </button>
             <button
               className={activeTab === "learn" ? "tab-button active" : "tab-button"}
@@ -222,10 +313,35 @@ function App() {
             />
           )}
           {activeTab === "learn" && <LearnView />}
+          {activeTab === "document" && (
+            <DocumentCheckView
+              documentError={documentError}
+              documentResult={documentResult}
+              documentStatus={documentStatus}
+              documentText={documentText}
+              readDocumentFile={readDocumentFile}
+              runDocumentCheck={runDocumentCheck}
+              setDocumentText={setDocumentText}
+            />
+          )}
           {activeTab === "review" && <ReviewView />}
         </section>
       </section>
     </main>
+  );
+}
+
+function FormattedReference({ parts }: { parts: FormattedReferencePart[] }) {
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.italic ? (
+          <em key={`${part.text}-${index}`}>{part.text}</em>
+        ) : (
+          <span key={`${part.text}-${index}`}>{part.text}</span>
+        ),
+      )}
+    </>
   );
 }
 
@@ -324,7 +440,9 @@ function BuildView({
           <p className={citation.status === "incomplete" ? "status-pill incomplete" : "status-pill complete"}>
             {citation.status === "incomplete" ? "Incomplete citation" : "Ready to review"}
           </p>
-          <p className="citation-output hanging">{citation.reference}</p>
+          <p className="citation-output hanging">
+            <FormattedReference parts={citation.formattedReferenceParts} />
+          </p>
         </div>
 
         <div className="result-pair">
@@ -358,6 +476,122 @@ function BuildView({
             </div>
           ))}
         </div>
+      </section>
+    </div>
+  );
+}
+
+function DocumentCheckView({
+  documentError,
+  documentResult,
+  documentStatus,
+  documentText,
+  readDocumentFile,
+  runDocumentCheck,
+  setDocumentText,
+}: {
+  documentError: string | null;
+  documentResult: DocumentCheckResult | null;
+  documentStatus: "idle" | "reading";
+  documentText: string;
+  readDocumentFile: (file: File) => Promise<void>;
+  runDocumentCheck: (text?: string, kind?: UploadedDocumentKind, sourceName?: string) => void;
+  setDocumentText: (value: string) => void;
+}) {
+  return (
+    <div className="view-grid">
+      <section className="editor-column">
+        <div className="section-heading">
+          <p className="eyebrow">Document Check</p>
+          <h2>Review a full APA draft</h2>
+          <p>Upload an exported DOCX or PDF, or paste text. This static prototype checks extracted text in the browser.</p>
+        </div>
+
+        <label className="field-block">
+          <span>Upload exported document</span>
+          <input
+            accept=".docx,.pdf,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            disabled={documentStatus !== "idle"}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void readDocumentFile(file);
+              event.currentTarget.value = "";
+            }}
+            type="file"
+          />
+          <small>For Google Docs, use File &gt; Download, then choose Microsoft Word (.docx) or PDF.</small>
+        </label>
+
+        <label className="field-block">
+          <span>Extracted or pasted text</span>
+          <textarea value={documentText} onChange={(event) => setDocumentText(event.target.value)} rows={14} />
+          <small>Formatting such as line spacing, margins, font, and heading styles may not survive text extraction.</small>
+        </label>
+
+        <div className="button-row">
+          <button className="primary-button" disabled={documentStatus !== "idle"} type="button" onClick={() => runDocumentCheck()}>
+            <FileText size={18} />
+            {documentStatus === "reading" ? "Reading..." : "Check document"}
+          </button>
+          <button className="secondary-button" type="button" onClick={() => setDocumentText(sampleDocumentText)}>
+            Use sample
+          </button>
+        </div>
+
+        <p className="settings-note">
+          Privacy boundary: this v1.3 prototype does not use Google login, does not add a backend, and does not store uploaded files.
+        </p>
+        {documentError && <p className="error-note">{documentError}</p>}
+      </section>
+
+      <section className="result-column" aria-live="polite">
+        <div className="section-heading compact">
+          <p className="eyebrow">Document feedback</p>
+          <h2>Teaching review</h2>
+        </div>
+
+        {!documentResult ? (
+          <div className="empty-state">
+            <FileText size={32} />
+            <p>Run a document check to see APA draft-level feedback and manual review reminders.</p>
+          </div>
+        ) : (
+          <>
+            <div className="result-block">
+              <h3>{documentResult.sourceName}</h3>
+              <p className="rule-source">
+                {documentResult.kind.toUpperCase()} · {documentResult.wordCount} words · {documentResult.characterCount} characters
+              </p>
+              <p>{documentResult.privacyNote}</p>
+            </div>
+
+            <div className="issue-list">
+              {documentResult.issues.map((issue, index) => (
+                <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${index}`}>
+                  <div className="issue-topline">
+                    <span>{issue.severity} / {issue.category}</span>
+                    <small>{issue.confidence} confidence</small>
+                  </div>
+                  <h3>{issue.message}</h3>
+                  <p><strong>Why it matters:</strong> {issue.whyItMatters}</p>
+                  <p><strong>Student action:</strong> {issue.studentAction}</p>
+                  {issue.evidence && <p className="rule-source">Evidence: {issue.evidence}</p>}
+                </article>
+              ))}
+            </div>
+
+            <div className="compact-list">
+              <h3>Needs manual review</h3>
+              <ul>
+                {documentResult.manualReviewChecklist.map((issue) => (
+                  <li key={issue.ruleId}>
+                    <strong>{issue.category}:</strong> {issue.studentAction}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
@@ -526,7 +760,7 @@ function CheckView({
             {issues.map((issue, index) => (
               <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${issue.message}`}>
                 <div className="issue-topline">
-                  <span>{issue.severity} · {issue.source}</span>
+                  <span>{issue.severity} / {issue.source}</span>
                   <small>{issue.confidence} confidence</small>
                 </div>
                 <h3>{issue.message}</h3>
@@ -568,7 +802,7 @@ function CheckView({
               {llmResult.issues.map((issue, index) => (
                 <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${index}`}>
                   <div className="issue-topline">
-                    <span>{issue.severity} · llm</span>
+                    <span>{issue.severity} / llm</span>
                     <small>{issue.confidence} confidence</small>
                   </div>
                   <h3>{issue.message}</h3>
@@ -706,17 +940,19 @@ function LearnView() {
 function ReviewView() {
   const readinessItems = [
     "Static Vite build ready for GitHub Pages",
-    "No login, database, backend, or student text persistence in v1.2",
+    "No login, database, backend, or student document persistence in v1.3",
     "Optional BYOK LLM enhancement is client-side, manual, and session-only",
     "Rule-based diagnosis remains available without any LLM configuration",
+    "Document Check runs extracted-text review in the browser session",
     "English-only student-facing interface",
-    "Faculty-facing handoff, test report, v1.1 plan, and v1.2 BYOK guide included in the repository",
+    "Faculty-facing handoff, test report, v1.1 plan, v1.2 BYOK guide, and v1.3 upgrade notes included in the repository",
   ];
 
   const reviewQuestions = [
     "Does the tool feel like a tutor instead of an answer generator?",
     "Are the academic integrity boundaries clear enough for students?",
     "Are the APA examples and warnings appropriate for psychology coursework?",
+    "Does Document Check respond to the need for full-paper review without overstating static-prototype accuracy?",
     "Should any course-specific policies be added before a student pilot?",
   ];
 
@@ -725,6 +961,7 @@ function ReviewView() {
     "Academic integrity fit: the tool does not draft papers or invent source data",
     "APA accuracy concerns: source examples and corrections need faculty review",
     "Privacy concerns: LLM enhancement sends text only after manual user action and never stores it in this app",
+    "Document privacy concerns: uploaded DOCX/PDF files are read in the browser and not stored by the app",
     "Pilot readiness: do not use public student BYOK until faculty policy approves it",
   ];
 
@@ -733,6 +970,7 @@ function ReviewView() {
     "Choose Missing author practice to confirm the tool blocks incomplete references",
     "Open Check, run the sample, and reveal one correction after reading the hint",
     "Use the MLA sample to confirm style detection explains APA versus MLA",
+    "Open Document Check, use the sample, and review automatic issues plus manual review reminders",
     "Review LLM Settings without entering a real key unless you intend to test your own provider",
     "Open Learn, filter to AI citation/disclosure, and answer one practice prompt",
     "Return to this page and review the pilot-readiness checklist before sharing with students",
@@ -741,6 +979,7 @@ function ReviewView() {
   const notPilotReadyUntil = [
     "Faculty approve the curated examples and source-type guidance",
     "Course policy language is reviewed for AI disclosure expectations",
+    "Faculty approve the Document Check limitation language before any full-paper student pilot",
     "Known citation test cases pass in CI",
     "BYOK key handling and provider CORS limits are explained to reviewers",
     "Students are told this is a coach, not a final APA validator",
@@ -750,10 +989,10 @@ function ReviewView() {
     <div className="learn-stack">
       <div className="section-heading">
         <p className="eyebrow">Faculty Review</p>
-        <h2>Ready for a professor-facing v1.2 review</h2>
+        <h2>Ready for a professor-facing v1.3 review</h2>
         <p>
-          This v1.2 build keeps the static GitHub Pages deployment while adding
-          citation style detection and optional user-provided LLM enhancement.
+          This v1.3 build keeps the static GitHub Pages deployment while adding
+          stronger reference-format feedback and a browser-only Document Check prototype.
           It is still a review build, not a public student pilot.
         </p>
       </div>
@@ -761,11 +1000,11 @@ function ReviewView() {
       <section className="review-hero">
         <div>
           <p className="eyebrow">Shareable version</p>
-          <h3>APA Coach v1.2</h3>
+          <h3>APA Coach v1.3</h3>
           <p>
             A learning-first APA support tool for building citations, checking
-            citation attempts, and practicing APA rules without replacing student
-            authorship.
+            citation attempts, reviewing full-draft signals, and practicing APA
+            rules without replacing student authorship.
           </p>
         </div>
         <div className="review-actions">
@@ -787,6 +1026,10 @@ function ReviewView() {
           </a>
           <a href={`${publicBasePath}docs/v1.2-llm-byok-guide.md`} target="_blank" rel="noreferrer">
             v1.2 BYOK guide
+            <ExternalLink size={16} />
+          </a>
+          <a href={`${publicBasePath}docs/v1.3-upgrade-notes.md`} target="_blank" rel="noreferrer">
+            v1.3 notes
             <ExternalLink size={16} />
           </a>
         </div>

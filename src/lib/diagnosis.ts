@@ -43,6 +43,17 @@ function hasTitleCaseSignal(text: string): boolean {
   return words.length >= 4 && capitalizedSmallWords.length >= 1;
 }
 
+function hasCompressedInitials(text: string): boolean {
+  return /\b[A-Z][A-Za-z'’-]+,\s*(?:[A-Z]\.){2,}/.test(text);
+}
+
+function expandedInitialsExample(text: string): string {
+  const match = text.match(/\b([A-Z][A-Za-z'’-]+),\s*((?:[A-Z]\.){2,})/);
+  if (!match) return "Lacy, J. T. (2024). Title of work. Source.";
+  const initials = match[2].match(/[A-Z]\./g)?.join(" ") ?? match[2];
+  return `${match[1]}, ${initials}`;
+}
+
 function missingLocatorDetails(text: string): boolean {
   return /Journal|Review|Quarterly|Psychology/i.test(text) && !/\d+\s*\(\d+\)|\d+,\s*\d+-\d+/.test(text);
 }
@@ -58,6 +69,14 @@ function titleSourceBoundaryLooksUnclear(text: string): boolean {
 function looksLikeOnlyAuthorDateTitle(text: string): boolean {
   const normalizedInitials = text.replace(/\b[A-Z]\./g, "A");
   return /^[^.]+\s\((?:\d{4}|n\.d\.)\)\.\s[^.]+\.$/i.test(normalizedInitials);
+}
+
+function looksLikeJournalArticleReference(text: string): boolean {
+  return looksLikeReference(text) && /\((?:\d{4}|n\.d\.)\)\.\s[^.]+\.\s[^.]+,\s*\d+/i.test(text);
+}
+
+function looksLikeStandaloneWorkReference(text: string): boolean {
+  return looksLikeReference(text) && /\((?:\d{4}|n\.d\.)\)\.\s[^.]+\.\s(?:[A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)*\.|https?:\/\/|www\.)/i.test(text);
 }
 
 export function diagnoseCitation(text: string): CheckIssue[] {
@@ -131,6 +150,22 @@ export function diagnoseCitation(text: string): CheckIssue[] {
         styleFamily: "chicago",
         evidence: styleDetection.evidence.join(" "),
         needsInstructorReview: true,
+      }),
+    );
+  }
+
+  if (hasCompressedInitials(value)) {
+    issues.push(
+      issue({
+        severity: "fix",
+        message: "Author initials need spaces after each period.",
+        whyItMatters: "APA reference entries use last name plus initials, and multiple initials are separated with spaces.",
+        hint: "Check the author element before the date. A compressed form such as J.T. should be written with a space between initials.",
+        studentAction: "Add a space between author initials after each period.",
+        ruleId: "author-initials-spacing",
+        ruleSource: "APA reference author formatting",
+        suggestedCorrection: expandedInitialsExample(value),
+        confidence: "high",
       }),
     );
   }
@@ -211,6 +246,36 @@ export function diagnoseCitation(text: string): CheckIssue[] {
         ruleSource: "APA sentence case guidance",
         suggestedCorrection: "Learning APA style in first-year psychology: A guided practice study.",
         confidence: "medium",
+      }),
+    );
+  }
+
+  if (looksLikeJournalArticleReference(value)) {
+    issues.push(
+      issue({
+        severity: "check",
+        message: "Journal article references need source-type-specific italics.",
+        whyItMatters: "For APA journal article references, the article title is not italicized; the journal title and volume number are italicized.",
+        hint: "Use sentence case for the article title, then italicize the journal title and volume number in the final document.",
+        studentAction: "Compare the article reference with an APA journal article example and review the journal title and volume formatting.",
+        ruleId: "italics-source-type",
+        ruleSource: "APA reference examples and Purdue OWL periodical guidance",
+        suggestedCorrection: "Author, A. A. (2024). Article title in sentence case. Journal Title, 12(2), 45-61.",
+        confidence: "medium",
+      }),
+    );
+  } else if (looksLikeStandaloneWorkReference(value)) {
+    issues.push(
+      issue({
+        severity: "check",
+        message: "Standalone works often need the work title italicized.",
+        whyItMatters: "Books, reports, some webpages, videos, and software/tool references use italics on the work title rather than on a journal title.",
+        hint: "First identify the source type, then apply italics to the correct title element.",
+        studentAction: "Compare the source with an APA example for that source type before final formatting.",
+        ruleId: "italics-source-type",
+        ruleSource: "APA source-type reference formatting guidance",
+        suggestedCorrection: "Author, A. A. (2024). Title of the standalone work. Publisher or Site Name. URL",
+        confidence: "low",
       }),
     );
   }
@@ -347,7 +412,7 @@ export function diagnoseCitation(text: string): CheckIssue[] {
     issues.push(
       issue({
         severity: "check",
-        message: "No obvious v1.2 rule-based issues were found.",
+        message: "No obvious v1.3 rule-based issues were found.",
         whyItMatters: "Rule-based checks can miss APA details and cannot verify source truth.",
         hint: "Still compare the citation with your assignment directions and an APA example.",
         studentAction: "Verify the source metadata before using this as a final citation.",

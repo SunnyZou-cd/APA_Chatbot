@@ -1,21 +1,22 @@
 # APA Coach
 
-APA Coach is a learning-first APA citation and writing-support prototype. It helps students build citation pairs, diagnose citation attempts, and learn common APA rules without writing papers for them.
+APA Coach is a learning-first APA citation and writing-support prototype. It helps students build citation pairs, diagnose citation attempts, review extracted full-draft signals, and learn common APA rules without writing papers for them.
 
 ## Version
 
-Current version: `1.0.0`
+Current version: `1.3.0`
 
 ## Live Site
 
-Professor-facing URL: https://apa-chatbot.vercel.app
-
-GitHub Pages target URL after publishing: `https://sunnyzou-cd.github.io/APA_Chatbot/`
+Professor-facing GitHub Pages URL: `https://sunnyzou-cd.github.io/APA_Chatbot/`
 
 ## What This App Does
 
 - Builds reference entries with matching parenthetical and narrative citations.
 - Flags missing or uncertain citation information instead of inventing details.
+- Displays source-type-specific italics in Build while keeping plain text copy behavior.
+- Flags compressed author initials, likely italics-review needs, DOI/URL issues, and style-family differences.
+- Provides a browser-only Document Check prototype for exported DOCX/PDF/TXT files and pasted text.
 - Gives hint-first feedback before revealing a suggested correction.
 - Provides APA rule cards, paper setup checks, AI citation guidance, and short practice prompts.
 - Includes a faculty review view that explains the learning boundary, privacy posture, and deployment readiness.
@@ -25,8 +26,10 @@ GitHub Pages target URL after publishing: `https://sunnyzou-cd.github.io/APA_Cha
 - It does not write student papers.
 - It does not rewrite arguments or literature reviews.
 - It does not fabricate authors, dates, DOIs, or sources.
-- It does not store student writing.
-- It does not call a real AI API in v1.0.
+- It does not store uploaded documents or student writing.
+- It does not connect to Google Docs or Google Drive; export a DOCX or PDF first.
+- It does not guarantee final APA layout validation for fonts, margins, spacing, headings, title pages, or hanging indents.
+- It does not call a real AI API unless a reviewer manually configures BYOK LLM enhancement and clicks the enhancement button.
 
 ## Local Development
 
@@ -73,4 +76,4 @@ For future redeploys, use GitHub + Vercel:
    - Output directory: `dist`
 4. Share the Vercel URL with the professor.
 
-See `docs/deployment-guide.md` for a step-by-step handoff.
+See `public/docs/deployment-guide.md` and `public/docs/v1.3-upgrade-notes.md` for the current professor-facing handoff.
