@@ -16,6 +16,7 @@ Professor-facing GitHub Pages URL: `https://sunnyzou-cd.github.io/APA_Chatbot/`
 - Flags missing or uncertain citation information instead of inventing details.
 - Displays source-type-specific italics in Build while keeping plain text copy behavior.
 - Flags compressed author initials, likely italics-review needs, DOI/URL issues, and style-family differences.
+- Accepts rich-text citation/reference paste in Check so italics from Word or Google Docs remain visible while rules use text content.
 - Provides a browser-only Document Check prototype for exported DOCX/PDF/TXT files and pasted text.
 - Gives hint-first feedback before revealing a suggested correction.
 - Provides APA rule cards, paper setup checks, AI citation guidance, and short practice prompts.

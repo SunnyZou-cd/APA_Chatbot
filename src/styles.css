@@ -211,7 +211,8 @@ h3 {
 
 .field-block input,
 .field-block select,
-.field-block textarea {
+.field-block textarea,
+.rich-text-input {
   width: 100%;
   border: 1px solid #becabe;
   background: #fbfcf8;
@@ -222,6 +223,7 @@ h3 {
 .field-block input:focus,
 .field-block select:focus,
 .field-block textarea:focus,
+.rich-text-input:focus,
 .choice-button:focus,
 .tab-button:focus,
 .primary-button:focus,
@@ -238,7 +240,8 @@ h3 {
 
 .field-block.has-issue input,
 .field-block.has-issue select,
-.field-block.has-issue textarea {
+.field-block.has-issue textarea,
+.field-block.has-issue .rich-text-input {
   border-color: #a43f3f;
   background: #fffafa;
 }
@@ -359,10 +362,17 @@ h3 {
   font-family: Georgia, "Times New Roman", serif;
 }
 
+.rich-text-input {
+  min-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .citation-output em,
-.reference-display em {
+.reference-display em,
+.rich-text-input i {
   display: inline;
-  font-family: Georgia, "Times New Roman", serif;
   font-style: italic;
 }
 

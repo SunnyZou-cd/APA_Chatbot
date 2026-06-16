@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   CheckCircle2,
@@ -346,6 +346,104 @@ function FormattedReference({ parts }: { parts: FormattedReferencePart[] }) {
   );
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeInlineStyle(element: HTMLElement): string {
+  const styles: string[] = [];
+  const fontFamily = element.style.fontFamily.replace(/[<>"']/g, "").trim();
+  const fontSize = element.style.fontSize.trim();
+  const fontStyle = element.style.fontStyle.trim();
+  const fontWeight = element.style.fontWeight.trim();
+
+  if (fontFamily) styles.push(`font-family:${fontFamily}`);
+  if (/^\d+(?:\.\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) styles.push(`font-size:${fontSize}`);
+  if (/^(italic|normal)$/.test(fontStyle)) styles.push(`font-style:${fontStyle}`);
+  if (/^(bold|normal|[1-9]00)$/.test(fontWeight)) styles.push(`font-weight:${fontWeight}`);
+  return styles.length > 0 ? ` style="${styles.join(";")}"` : "";
+}
+
+function sanitizeRichPaste(html: string): string {
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+
+  const renderNode = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return escapeHtml(node.textContent ?? "");
+    }
+
+    if (!(node instanceof HTMLElement)) {
+      return "";
+    }
+
+    const children = Array.from(node.childNodes).map(renderNode).join("");
+    const tagName = node.tagName.toLowerCase();
+    const style = safeInlineStyle(node);
+
+    if (tagName === "br") return "<br>";
+    if (tagName === "em" || tagName === "i") return `<em${style}>${children}</em>`;
+    if (tagName === "strong" || tagName === "b") return `<strong${style}>${children}</strong>`;
+    if (tagName === "u") return `<u${style}>${children}</u>`;
+    if (tagName === "span" || tagName === "font") return style ? `<span${style}>${children}</span>` : children;
+    if (tagName === "p" || tagName === "div") return `<div${style}>${children || "<br>"}</div>`;
+    if (style) return `<span${style}>${children}</span>`;
+    return children;
+  };
+
+  return Array.from(parsed.body.childNodes).map(renderNode).join("");
+}
+
+function RichTextCheckInput({
+  value,
+  onTextChange,
+}: {
+  value: string;
+  onTextChange: (value: string) => void;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement === editor) return;
+    if (editor.innerText.replace(/\u00a0/g, " ").trim() !== value.trim()) {
+      editor.textContent = value;
+    }
+  }, [value]);
+
+  const syncText = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    onTextChange(editor.innerText.replace(/\u00a0/g, " "));
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const html = event.clipboardData.getData("text/html");
+    const text = event.clipboardData.getData("text/plain");
+    const content = html ? sanitizeRichPaste(html) : escapeHtml(text).replace(/\n/g, "<br>");
+    document.execCommand("insertHTML", false, content);
+    syncText();
+  };
+
+  return (
+    <div
+      aria-label="Citation or reference"
+      className="rich-text-input reference-display"
+      contentEditable
+      onInput={syncText}
+      onPaste={handlePaste}
+      ref={editorRef}
+      role="textbox"
+      suppressContentEditableWarning
+    />
+  );
+}
+
 function BuildView({
   citation,
   copied,
@@ -645,11 +743,8 @@ function CheckView({
         </div>
         <label className="field-block">
           <span>Citation or reference</span>
-          <textarea
-            value={checkText}
-            onChange={(event) => setCheckText(event.target.value)}
-            rows={10}
-          />
+          <RichTextCheckInput value={checkText} onTextChange={setCheckText} />
+          <small>Rich text pasted from Word or Google Docs stays visible here; diagnosis uses the text content.</small>
         </label>
         <div className="button-row">
           <button className="primary-button" type="button" onClick={runCheck}>
