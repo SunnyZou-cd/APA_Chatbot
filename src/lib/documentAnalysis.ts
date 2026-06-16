@@ -5,7 +5,7 @@ import type {
   DocumentCheckIssue,
   DocumentCheckResultV14,
   UploadedDocumentKind,
-} from "../types";
+} from "../types.js";
 
 type Confidence = "high" | "medium" | "low";
 

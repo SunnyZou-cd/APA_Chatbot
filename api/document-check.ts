@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { IncomingForm, type File, type Fields, type Files } from "formidable";
-import { analyzeDocument, textToHtml } from "../src/lib/documentAnalysis";
-import { extractDocxHtml, extractPdfText } from "../src/lib/serverDocumentExtraction";
-import type { UploadedDocumentKind } from "../src/types";
+import { analyzeDocument, textToHtml } from "../src/lib/documentAnalysis.js";
+import { extractDocxHtml, extractPdfText } from "../src/lib/serverDocumentExtraction.js";
+import type { UploadedDocumentKind } from "../src/types.js";
 
 type VercelRequest = IncomingMessage & {
   method?: string;
