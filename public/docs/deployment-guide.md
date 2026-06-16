@@ -1,83 +1,88 @@
-# APA Coach v1.3 Deployment Guide
+# APA Coach v1.4 Deployment Guide
 
 ## Recommended Deployment Path
 
-Use GitHub Pages for the professor-facing link. APA Coach v1.3 is still a static Vite React app and does not require a backend server.
-
-Current GitHub Pages URL:
+Use Vercel for the professor-facing v1.4 link. Document Check now depends on a light API route:
 
 ```text
-https://sunnyzou-cd.github.io/APA_Chatbot/
+POST /api/document-check
 ```
+
+Current Vercel URL:
+
+```text
+https://apa-chatbot.vercel.app
+```
+
+GitHub Pages can remain as a static fallback, but it cannot run the v1.4 API.
 
 ## Risk Notes
 
-- Deploying the site uploads source code to GitHub.
-- v1.3 does not use student accounts, a database, Google login, or server-side student document storage.
-- Document Check reads DOCX/PDF/TXT files in the browser session and does not upload them to this app.
-- Optional BYOK LLM enhancement is client-side and manual.
+- Deploying the site uploads source code to the hosting provider.
+- v1.4 does not use student accounts, a database, Google login, or persistent student document storage.
+- DOCX/PDF/TXT files are parsed only during the current API request.
+- Optional BYOK LLM enhancement is manual and uses browser `sessionStorage`.
 - API keys must never be committed to the repository.
-- BYOK keys are stored in browser `sessionStorage`, not in project source code.
-- If LLM enhancement is used, the current citation text is sent to the configured provider.
+- If LLM enhancement is used, the current document text is sent to the configured provider.
 - Any student-data collection, analytics, or AI processing should be reviewed before a student pilot.
 
 ## Local Production Check
 
 ```powershell
 npm run check
-npm run build:pages
 ```
 
 Success signs:
 
 - Tests pass.
-- The GitHub Pages build finishes without errors.
-- The `dist` folder is created.
-- Build, Check, Document Check, Learn, and Faculty Review are usable.
-- Check can flag an MLA-style sample and compressed initials.
-- Document Check can run the sample and show manual review reminders.
-- The LLM settings panel is visible but does not call an API unless the user manually configures and triggers it.
+- Frontend build finishes without errors.
+- Vercel API TypeScript check finishes without errors.
+- Audit reports no high-severity dependency vulnerabilities.
+- Build, Document Check, Learn, and Faculty Review are usable.
+- Document Check can run Full document and Single reference / excerpt modes.
+- DOCX extraction preserves italic/bold in HTML.
+- PDF extraction returns text with layout-sensitive checks marked for manual review.
 
-## GitHub Pages Settings
+## Vercel Settings
 
-This repository includes a GitHub Actions workflow:
-
-```text
-.github/workflows/deploy-github-pages.yml
-```
-
-Set GitHub Pages to:
-
-```text
-Source: GitHub Actions
-```
-
-The workflow runs tests, audits high-severity dependencies, and builds with:
-
-```text
-npm run build:pages
-```
-
-## Vercel Fallback Notes
-
-GitHub Pages is the preferred professor-facing deployment. If a Vercel fallback is used, use:
+Use:
 
 ```text
 Framework Preset: Vite
 Install Command: npm ci
 Build Command: npm run build
 Output Directory: dist
+Node.js Version: 24.x
 ```
 
-Do not put provider API keys in frontend source code or public Vercel environment variables for this static build.
+This repository includes:
+
+```text
+api/document-check.ts
+vercel.json
+tsconfig.api.json
+```
+
+The API route parses multipart input and returns structured Document Check feedback. It does not write uploaded files to a database.
+
+## GitHub Pages Fallback
+
+The existing GitHub Pages workflow can still publish a static page:
+
+```text
+.github/workflows/deploy-github-pages.yml
+npm run build:pages
+```
+
+Do not use GitHub Pages as the v1.4 professor review target because `/api/document-check` will not run there.
 
 ## Share With Faculty
 
 Send:
 
-- The deployed GitHub Pages URL.
+- The deployed Vercel URL.
 - The Faculty Review page in the app.
 - The professor handoff notes.
-- The v1.3 upgrade notes.
+- The v1.4 upgrade notes.
 - The v1.2 BYOK LLM guide if the professor wants to evaluate optional LLM feedback.
-- A note that v1.3 is a prototype and is not yet recommended for open student pilot use.
+- A note that v1.4 is a review build and is not yet recommended for open student pilot use.

@@ -371,9 +371,26 @@ h3 {
 
 .citation-output em,
 .reference-display em,
+.rich-text-input em,
 .rich-text-input i {
   display: inline;
   font-style: italic;
+}
+
+.metadata-list {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) 1fr;
+  gap: 8px 12px;
+  margin: 12px 0 0;
+}
+
+.metadata-list dt {
+  font-weight: 900;
+}
+
+.metadata-list dd {
+  margin: 0;
+  color: #4f5b53;
 }
 
 .status-pill {

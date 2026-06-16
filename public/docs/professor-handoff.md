@@ -1,48 +1,56 @@
-# APA Coach v1.3 Faculty Review Notes
+# APA Coach v1.4 Faculty Review Notes
 
 ## Short Description
 
-APA Coach v1.3 is a learning-first APA support prototype. It helps students build citation pairs, diagnose citation and reference attempts, review extracted full-draft signals, and learn APA formatting boundaries. It is not a paper generator, not a final APA validator, and not a source-verification tool.
+APA Coach v1.4 is a learning-first APA support prototype. It helps students build citation pairs, review full documents or single references, and learn APA formatting boundaries without writing papers for them.
 
 Live review URL:
+
+```text
+https://apa-chatbot.vercel.app
+```
+
+Static fallback:
 
 ```text
 https://sunnyzou-cd.github.io/APA_Chatbot/
 ```
 
-## What Changed in v1.3
+The Vercel URL is the v1.4 review target because Document Check uses `/api/document-check`.
 
-- Reference feedback now checks compressed author initials such as `Lacy, J.T.` and teaches the spaced form `Lacy, J. T.`.
-- Build output now displays source-type-specific italics while keeping plain text copy behavior.
-- Check now gives source-type-specific italics guidance for journal articles and standalone works.
-- A new Document Check prototype lets reviewers upload exported DOCX/PDF/TXT files or paste text.
-- Document Check runs in the browser session and reports both automatic findings and manual review reminders.
+## What Changed in v1.4
+
+- Document Check is now the main review entry point.
+- The old Check workflow is folded into Document Check as Single reference / excerpt mode.
+- DOCX/PDF/TXT parsing moved to a Vercel API route instead of a frontend dynamic import.
+- DOCX and rich-text paste can preserve italic, bold, and basic paragraph structure in the review area.
+- The parser recognizes parenthetical, narrative, multi-source, and `et al.` in-text citation patterns.
+- Reference parsing now guesses source type and extracts candidate metadata.
+- Corrections are best-effort, source-type-specific, and show confidence plus metadata-confirmation reminders.
 
 ## Current Boundaries
 
-Version 1.3 does not include student accounts, a database, Google account access, server-side uploads, server-side storage, paper drafting, source truth verification, or automatic final APA approval.
+Version 1.4 does not include student accounts, a database, Google account access, Google Docs login, paper drafting, source truth verification, or automatic final APA approval.
 
-Google Docs should be reviewed by exporting the file as `.docx` or `.pdf` first. The app does not connect to Google Drive or Google Docs.
+Uploaded files are parsed only for the current request. The app does not save uploads to a database or connect to Google Drive.
+
+PDF layout extraction is lower confidence than DOCX. Font, spacing, margins, heading levels, hanging indents, and title-page layout remain manual review items.
 
 ## Module Summary
 
 ### Build
 
-Build supports structured citation practice for selected source types. It blocks missing required metadata, keeps plain text references copyable, and visually marks expected italics for source-type-specific review.
-
-### Check
-
-Check combines rule-based diagnosis with citation-style detection. v1.3 adds author-initial spacing and italics guidance, while preserving the hint-first and reveal-second feedback model.
+Build supports structured citation practice for selected source types. It keeps plain text references copyable while visually marking expected italics.
 
 ### Document Check
 
-Document Check reviews extracted text from DOCX, PDF, TXT, or pasted text. It can flag likely reference-section, in-text citation, citation/reference match, initials-spacing, DOI/URL, title-case, and italics-review issues.
+Document Check accepts exported DOCX/PDF/TXT files, rich-text paste, and single references or excerpts. It can identify likely References sections, in-text citations, reference entries, citation/reference mismatches, compressed initials, DOI/URL issues, title-case review needs, and italics-review needs.
 
-It cannot reliably verify layout-sensitive items such as font, margins, double-spacing, hanging indents, title page placement, or heading levels after text extraction. Those items are shown as manual review reminders.
+Generated corrections should be treated as teaching suggestions. Students must confirm the source type and metadata before using them.
 
 ### Optional BYOK LLM Enhancement
 
-The LLM feature remains optional and manual. Users may enter an OpenAI-compatible base URL, API key, and model, then click the enhancement button. The key is stored only in browser `sessionStorage`. Document Check does not automatically send full papers to an LLM.
+The LLM feature remains optional and manual. Users may enter an OpenAI-compatible base URL, API key, and model, then click the enhancement button. Document Check does not automatically send full papers to an LLM.
 
 ### Learn and Faculty Review
 
@@ -50,14 +58,14 @@ Learn includes APA rule cards, paper setup checks, AI citation/disclosure guidan
 
 ## Recommended Walkthrough
 
-1. Open the live site.
+1. Open the Vercel live site.
 2. Review the journal article example in Build and confirm the journal title and volume are visually italicized.
-3. Open Check and test `Lacy, J.T.` to confirm initials-spacing feedback.
-4. Use the MLA sample and confirm style detection explains APA versus MLA.
-5. Open Document Check, use the sample, and review automatic findings plus manual review reminders.
-6. Review LLM Settings without entering a real API key unless you intend to test your own provider.
-7. Open Learn and review the References and Document check cards.
-8. Open Faculty Review and evaluate the delivery, privacy, and pilot-readiness language.
+3. Open Document Check and run the sample in Full document mode.
+4. Switch to Single reference / excerpt mode and check a single reference.
+5. Upload a DOCX exported from Google Docs or Word and confirm italic/bold text remains visible.
+6. Review generated corrections and the metadata confirmation panel.
+7. Review LLM Settings without entering a real API key unless you intend to test your own provider.
+8. Open Learn and review the References and Document check cards.
 
 ## Not Pilot-Ready Until
 

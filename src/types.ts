@@ -165,6 +165,67 @@ export interface DocumentCheckResult {
   privacyNote: string;
 }
 
+export interface ApaCitationCandidate {
+  kind: "parenthetical" | "narrative";
+  author: string;
+  year: string;
+  evidence: string;
+  startIndex: number;
+}
+
+export type ApaSourceTypeGuess = "journalArticle" | "book" | "bookChapter" | "webpage" | "report" | "unknown";
+
+export interface ApaEditableFields {
+  authors: string;
+  year: string;
+  title: string;
+  source: string;
+  publisher: string;
+  volumeIssuePages: string;
+  doiOrUrl: string;
+}
+
+export interface ApaReferenceCandidate {
+  originalText: string;
+  authors: string;
+  year: string;
+  title: string;
+  source: string;
+  volumeIssuePages: string;
+  doiOrUrl: string;
+  sourceTypeGuess: ApaSourceTypeGuess;
+  confidence: "high" | "medium" | "low";
+  editableFields: ApaEditableFields;
+}
+
+export interface ApaCorrectionCandidate {
+  originalText: string;
+  correctedHtml: string | null;
+  correctedPlainText: string;
+  confidence: "high" | "medium" | "low";
+  sourceTypeGuess: ApaSourceTypeGuess;
+  editableFields: ApaEditableFields;
+  missingFields: string[];
+  note: string;
+}
+
+export interface DocumentCheckResultV14 {
+  documentHtml: string;
+  plainText: string;
+  sourceName: string;
+  inputKind: UploadedDocumentKind;
+  mode: "document" | "single-reference";
+  wordCount: number;
+  characterCount: number;
+  hasReferencesSection: boolean;
+  citations: ApaCitationCandidate[];
+  references: ApaReferenceCandidate[];
+  issues: DocumentCheckIssue[];
+  manualReviewItems: DocumentCheckIssue[];
+  corrections: ApaCorrectionCandidate[];
+  privacyNote: string;
+}
+
 export interface RuleCard {
   id: string;
   topic: RuleTopic;
