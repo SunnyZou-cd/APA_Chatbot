@@ -45,6 +45,19 @@ export const ruleCards: RuleCard[] = [
       "https://apastyle.apa.org/style-grammar-guidelines/references/dois-urls",
   },
   {
+    id: "italics-source-type",
+    topic: "References",
+    title: "Italicize the right source element",
+    plainLanguageRule:
+      "APA italics depend on source type. For journal articles, italicize the journal title and volume. For standalone works, italicize the work title.",
+    example:
+      "Smith, J. (2024). Learning APA style in first-year psychology. Journal of Student Writing, 12(2), 45-61.",
+    commonMistake: "Italicizing the article title instead of the journal title, or forgetting to italicize a book or report title.",
+    studentAction: "Identify the source type first, then compare the reference with a matching APA example.",
+    askInstructorWhen: "The source type is unclear or the assignment provides a modified reference format.",
+    officialLink: "https://apastyle.apa.org/instructional-aids/reference-examples.pdf",
+  },
+  {
     id: "hanging-indent",
     topic: "Paper setup",
     title: "Reference entries use a hanging indent",

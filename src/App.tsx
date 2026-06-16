@@ -18,6 +18,7 @@ import { checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./
 import { fieldDefinitions, sourceExamples, sourceTypeConfigs } from "./data/sourceExamples";
 import { aiFeedbackProvider } from "./lib/aiFeedbackProvider";
 import { buildCitation } from "./lib/citation";
+import { formatApaTextForDisplay } from "./lib/displayFormatting";
 import { checkDocumentText } from "./lib/documentCheck";
 import { enhanceCitationWithLlm, isLlmConfigured, testLlmConnection } from "./lib/llmFeedbackProvider";
 import type {
@@ -784,7 +785,11 @@ function CheckView({
                   {revealed[index] ? <EyeOff size={16} /> : <Eye size={16} />}
                   {revealed[index] ? "Hide correction" : "Reveal correction"}
                 </button>
-                {revealed[index] && <p className="suggestion">{issue.suggestedCorrection}</p>}
+                {revealed[index] && (
+                  <p className="suggestion reference-display">
+                    <FormattedReference parts={formatApaTextForDisplay(issue.suggestedCorrection)} />
+                  </p>
+                )}
               </article>
             ))}
           </div>
@@ -869,7 +874,9 @@ function LearnView() {
             <p className="eyebrow">{rule.topic}</p>
             <h3>{rule.title}</h3>
             <p>{rule.plainLanguageRule}</p>
-            <div className="example-box">{rule.example}</div>
+            <div className="example-box reference-display">
+              <FormattedReference parts={formatApaTextForDisplay(rule.example)} />
+            </div>
             <p><strong>Common mistake:</strong> {rule.commonMistake}</p>
             <p><strong>Student action:</strong> {rule.studentAction}</p>
             <p><strong>Ask instructor when:</strong> {rule.askInstructorWhen}</p>
