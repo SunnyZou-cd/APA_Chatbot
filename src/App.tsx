@@ -736,7 +736,7 @@ function DocumentCheckView({
           <RichTextCheckInput
             htmlValue={documentHtml}
             label={documentMode === "document" ? "Extracted or pasted document" : "Reference or excerpt"}
-            minHeight={360}
+            minHeight={320}
             onHtmlChange={setDocumentHtml}
             onTextChange={setDocumentText}
             value={documentText}
