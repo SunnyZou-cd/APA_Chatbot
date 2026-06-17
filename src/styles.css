@@ -98,6 +98,7 @@ a:hover {
 h1,
 h2,
 h3,
+h4,
 p {
   margin-top: 0;
 }
@@ -235,7 +236,7 @@ h3 {
 }
 
 .field-block small {
-  color: #69746c;
+  color: #4f5b53;
 }
 
 .field-block.has-issue input,
@@ -251,20 +252,52 @@ h3 {
   font-weight: 800;
 }
 
+.field-warning {
+  color: #7c4a12 !important;
+  font-weight: 800;
+}
+
 .settings-panel {
   margin-top: 18px;
   background: #f9fbf6;
 }
 
+.llm-disclosure summary {
+  cursor: pointer;
+  color: #123d33;
+  font-weight: 900;
+}
+
+.llm-disclosure[open] summary {
+  margin-bottom: 14px;
+}
+
 .settings-note,
 .success-note,
 .error-note,
-.review-needed {
+.review-needed,
+.limitation-note,
+.empty-note {
   margin: 10px 0 0;
   border: 1px solid #dce4db;
   background: #ffffff;
   padding: 10px 12px;
   color: #4f5b53;
+}
+
+.limitation-note {
+  margin-top: 0;
+  border-color: #c7752f;
+  background: #fff7ec;
+  color: #493016;
+}
+
+.empty-note {
+  background: #fbfcf8;
+}
+
+.error-note.compact {
+  margin: 0 0 12px;
 }
 
 .success-note {
@@ -346,7 +379,8 @@ h3 {
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -505,7 +539,7 @@ h3 {
 }
 
 .rule-source {
-  color: #5b675f;
+  color: #4f5b53;
   font-size: 0.9rem;
 }
 
@@ -533,6 +567,43 @@ h3 {
   padding: 14px 16px;
 }
 
+.field-rationale,
+.issue-group,
+.upload-summary {
+  border: 1px solid #dce4db;
+  background: #f9fbf6;
+  padding: 14px 16px;
+}
+
+.field-rationale {
+  margin-bottom: 16px;
+}
+
+.field-rationale ul,
+.issue-group ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.field-rationale li {
+  color: #4f5b53;
+  margin-top: 6px;
+}
+
+.issue-group-list {
+  display: grid;
+  gap: 14px;
+}
+
+.issue-group-heading {
+  margin-bottom: 12px;
+}
+
+.issue-group-heading p {
+  margin-bottom: 0;
+  color: #4f5b53;
+}
+
 .compact-list ul {
   display: grid;
   gap: 8px;
@@ -543,6 +614,11 @@ h3 {
 .learn-stack {
   display: grid;
   gap: 22px;
+}
+
+.search-field {
+  max-width: 520px;
+  margin-bottom: 0;
 }
 
 .rule-grid {
@@ -673,6 +749,38 @@ h3 {
   margin: 6px 0 0;
 }
 
+.assignment-mistakes {
+  display: grid;
+  gap: 12px;
+}
+
+.mistake-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mistake-card {
+  border: 1px solid #dce4db;
+  background: #f9fbf6;
+  padding: 12px;
+}
+
+.mistake-card h4 {
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.mistake-card p {
+  margin-bottom: 0;
+  color: #4f5b53;
+}
+
+.priority-panel {
+  border-color: #c9b177;
+  background: #fffdf4;
+}
+
 @media (max-width: 1040px) {
   .workspace,
   .view-grid,
@@ -697,6 +805,10 @@ h3 {
   .rule-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .mistake-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -709,7 +821,11 @@ h3 {
     border: 0;
   }
 
-  .sidebar,
+  .sidebar {
+    gap: 12px;
+    padding: 12px;
+  }
+
   .tool-surface {
     padding: 18px;
   }
@@ -721,8 +837,35 @@ h3 {
   .form-grid,
   .result-pair,
   .rule-grid,
-  .tab-list {
+  .mistake-grid {
     grid-template-columns: 1fr;
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-lockup h1 {
+    font-size: 1.2rem;
+  }
+
+  .tab-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .tab-button {
+    justify-content: center;
+    min-height: 56px;
+    padding: 8px 6px;
+    gap: 5px;
+    font-size: 0.78rem;
+    line-height: 1.12;
+    text-align: center;
+  }
+
+  .integrity-panel {
+    display: none;
   }
 
   .part-row {

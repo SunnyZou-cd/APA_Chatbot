@@ -126,10 +126,11 @@ export function validateSourceInput(input: SourceInput): ValidationIssue[] {
 
 function incompleteResult(input: SourceInput, validationIssues: ValidationIssue[]): CitationResult {
   const config = sourceTypeConfigs[input.sourceType];
+  const incompleteMessage = "Incomplete citation. Add the missing source information before copying.";
   return {
     status: "incomplete",
-    reference: "Incomplete citation",
-    formattedReferenceParts: [{ text: "Incomplete citation" }],
+    reference: incompleteMessage,
+    formattedReferenceParts: [{ text: incompleteMessage }],
     parenthetical: "Incomplete in-text citation",
     narrative: "Incomplete narrative citation",
     warnings: validationIssues.map((issue) => issue.message),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checklistItems, practicePrompts, ruleCards } from "./rules";
+import { assignmentMistakes, checklistItems, practicePrompts, ruleCards } from "./rules";
 
 const expectedTopics = [
   "In-text citations",
@@ -28,6 +28,8 @@ describe("learn module data", () => {
 
   it.each(practicePrompts)("includes explanation and feedback for prompt %#", (prompt) => {
     expect(prompt.explanation).toBeTruthy();
+    expect(prompt.apaPrinciple).toBeTruthy();
+    expect(prompt.nextStep).toBeTruthy();
     expect(prompt.choices.length).toBeGreaterThanOrEqual(2);
     expect(prompt.choices.some((choice) => choice.value === prompt.answer)).toBe(true);
 
@@ -44,5 +46,10 @@ describe("learn module data", () => {
   it("includes AI citation and disclosure practice", () => {
     expect(practicePrompts.some((prompt) => prompt.prompt.includes("AI disclosure"))).toBe(true);
     expect(ruleCards.some((rule) => rule.id === "ai-disclosure")).toBe(true);
+  });
+
+  it("includes first-year assignment mistake guidance", () => {
+    expect(assignmentMistakes.length).toBeGreaterThanOrEqual(4);
+    expect(assignmentMistakes.some((item) => item.title.includes("MLA"))).toBe(true);
   });
 });

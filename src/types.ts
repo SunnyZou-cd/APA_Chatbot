@@ -128,6 +128,8 @@ export interface LlmCheckResult {
 }
 
 export type UploadedDocumentKind = "docx" | "pdf" | "text";
+export type DocumentIssueGroup = "detected" | "possible" | "manual";
+export type DocumentParseStatus = "idle" | "parsing" | "success" | "text-extraction-only" | "error";
 
 export interface DocumentCheckIssue {
   severity: Severity;
@@ -152,6 +154,7 @@ export interface DocumentCheckIssue {
     | "italics-source-type";
   confidence: "high" | "medium" | "low";
   evidence?: string;
+  displayGroup?: DocumentIssueGroup;
 }
 
 export interface DocumentCheckResult {
@@ -209,7 +212,16 @@ export interface ApaCorrectionCandidate {
   note: string;
 }
 
-export interface DocumentCheckResultV14 {
+export interface DocumentUploadSummary {
+  sourceName: string;
+  inputKind: UploadedDocumentKind;
+  sizeBytes?: number;
+  parseStatus: DocumentParseStatus;
+  layoutReliability: "high" | "medium" | "low";
+  message: string;
+}
+
+export interface DocumentCheckResultV15 {
   documentHtml: string;
   plainText: string;
   sourceName: string;
@@ -223,8 +235,11 @@ export interface DocumentCheckResultV14 {
   issues: DocumentCheckIssue[];
   manualReviewItems: DocumentCheckIssue[];
   corrections: ApaCorrectionCandidate[];
+  uploadSummary: DocumentUploadSummary;
   privacyNote: string;
 }
+
+export type DocumentCheckResultV14 = DocumentCheckResultV15;
 
 export interface RuleCard {
   id: string;
@@ -248,4 +263,6 @@ export interface PracticePrompt {
   choices: PracticeChoice[];
   answer: string;
   explanation: string;
+  apaPrinciple: string;
+  nextStep: string;
 }

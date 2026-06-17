@@ -148,6 +148,25 @@ export const checklistItems = [
   "Instructor-specific requirements are checked before submission",
 ];
 
+export const assignmentMistakes = [
+  {
+    title: "Mixing MLA and APA",
+    studentAction: "Check whether in-text citations use author and year, not author and page only.",
+  },
+  {
+    title: "Reference list without hanging indent",
+    studentAction: "Use paragraph indentation settings instead of spaces or tabs.",
+  },
+  {
+    title: "In-text citations do not match references",
+    studentAction: "Match each cited author and year to one reference entry.",
+  },
+  {
+    title: "AI citation confused with AI disclosure",
+    studentAction: "Follow both APA citation guidance and the instructor's AI-use policy.",
+  },
+];
+
 export const practicePrompts: PracticePrompt[] = [
   {
     prompt: "Which citation uses narrative style?",
@@ -167,6 +186,8 @@ export const practicePrompts: PracticePrompt[] = [
     ],
     answer: "Smith (2024) argued...",
     explanation: "Narrative citations make the author part of the sentence and put the date in parentheses.",
+    apaPrinciple: "APA uses author-date citation. Narrative style makes the author part of the grammar of the sentence.",
+    nextStep: "Look at one paragraph in your draft and decide whether each citation should be narrative or parenthetical.",
   },
   {
     prompt: "What should you do if the source has no date?",
@@ -186,6 +207,8 @@ export const practicePrompts: PracticePrompt[] = [
     ],
     answer: "Use n.d. and avoid inventing a year",
     explanation: "APA citation should not invent missing metadata. The no-date marker tells readers what is known.",
+    apaPrinciple: "APA references should represent source metadata honestly instead of guessing missing information.",
+    nextStep: "Check the original source page, PDF, or database record before using n.d.",
   },
   {
     prompt: "What is the safest next step when source information is missing?",
@@ -205,6 +228,8 @@ export const practicePrompts: PracticePrompt[] = [
     ],
     answer: "Find the missing detail in the original source",
     explanation: "APA formatting depends on accurate source metadata, not just punctuation.",
+    apaPrinciple: "A formatted citation is only as reliable as the author, date, title, source, and retrieval details behind it.",
+    nextStep: "Open the source record and fill in missing fields before copying any generated citation.",
   },
   {
     prompt: "Which statement best separates APA citation from AI disclosure?",
@@ -224,5 +249,7 @@ export const practicePrompts: PracticePrompt[] = [
     ],
     answer: "APA citation and course disclosure may both matter",
     explanation: "APA style can guide citation format, while the instructor controls permitted use and disclosure expectations.",
+    apaPrinciple: "Citation explains source use; course disclosure explains whether and how AI assistance was allowed.",
+    nextStep: "Compare your AI-use note with the assignment directions before submitting.",
   },
 ];

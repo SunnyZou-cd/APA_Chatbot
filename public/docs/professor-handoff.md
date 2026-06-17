@@ -1,8 +1,8 @@
-# APA Coach v1.4 Faculty Review Notes
+# APA Coach v1.5 Faculty Review Notes
 
 ## Short Description
 
-APA Coach v1.4 is a learning-first APA support prototype. It helps students build citation pairs, review full documents or single references, and learn APA formatting boundaries without writing papers for them.
+APA Coach v1.5 is a learning-first APA support prototype. It helps students build citation pairs, review full documents or single references, and learn APA formatting boundaries without writing papers for them.
 
 Live review URL:
 
@@ -16,12 +16,22 @@ Static fallback:
 https://sunnyzou-cd.github.io/APA_Chatbot/
 ```
 
-The Vercel URL is the v1.4 review target because Document Check uses `/api/document-check`.
+The Vercel URL is the v1.5 review target because Document Check uses `/api/document-check`.
 
-## What Changed in v1.4
+## What Changed in v1.5
 
-- Document Check is now the main review entry point.
+- Document Check remains the main review entry point.
 - The old Check workflow is folded into Document Check as Single reference / excerpt mode.
+- Incomplete Build citations now show a non-copyable incomplete state instead of a complete-looking reference.
+- Document Check results separate Detected issue, Possible issue, and Manual review required.
+- Uploaded files show filename, type, size, parsing status, and layout reliability.
+- PDF checks are presented as text extraction review, not full layout validation.
+- LLM Settings are collapsed by default and include stronger key-use warnings.
+- Learn practice prompts now include why, APA principle, and next-step feedback.
+- Faculty Review includes a 3-step review flow and a feedback template.
+
+## v1.4 Foundation
+
 - DOCX/PDF/TXT parsing moved to a Vercel API route instead of a frontend dynamic import.
 - DOCX and rich-text paste can preserve italic, bold, and basic paragraph structure in the review area.
 - The parser recognizes parenthetical, narrative, multi-source, and `et al.` in-text citation patterns.
@@ -30,7 +40,7 @@ The Vercel URL is the v1.4 review target because Document Check uses `/api/docum
 
 ## Current Boundaries
 
-Version 1.4 does not include student accounts, a database, Google account access, Google Docs login, paper drafting, source truth verification, or automatic final APA approval.
+Version 1.5 does not include student accounts, a database, Google account access, Google Docs login, paper drafting, source truth verification, or automatic final APA approval.
 
 Uploaded files are parsed only for the current request. The app does not save uploads to a database or connect to Google Drive.
 

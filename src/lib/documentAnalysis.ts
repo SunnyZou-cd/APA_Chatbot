@@ -277,7 +277,12 @@ export function buildCorrection(reference: ApaReferenceCandidate): ApaCorrection
 }
 
 function issue(params: DocumentCheckIssue): DocumentCheckIssue {
-  return params;
+  return {
+    ...params,
+    displayGroup:
+      params.displayGroup ??
+      (params.severity === "fix" && params.confidence === "high" ? "detected" : "possible"),
+  };
 }
 
 function manualReviewItems(inputKind: UploadedDocumentKind): DocumentCheckIssue[] {
@@ -290,6 +295,7 @@ function manualReviewItems(inputKind: UploadedDocumentKind): DocumentCheckIssue[
       studentAction: "Verify these items in Word or Google Docs before submission.",
       ruleId: "document-spacing-font",
       confidence: "low",
+      displayGroup: "manual",
     }),
     issue({
       severity: "ask",
@@ -299,6 +305,7 @@ function manualReviewItems(inputKind: UploadedDocumentKind): DocumentCheckIssue[
       studentAction: "Compare the title page with the instructor directions and APA student paper examples.",
       ruleId: "document-title-page",
       confidence: "low",
+      displayGroup: "manual",
     }),
     issue({
       severity: "ask",
@@ -308,8 +315,38 @@ function manualReviewItems(inputKind: UploadedDocumentKind): DocumentCheckIssue[
       studentAction: "Compare headings with APA Level 1-5 examples in the original Word or Google Docs file.",
       ruleId: "document-headings",
       confidence: "low",
+      displayGroup: "manual",
     }),
   ];
+}
+
+function uploadSummary(params: {
+  inputKind: UploadedDocumentKind;
+  sourceName: string;
+  sizeBytes?: number;
+}) {
+  if (params.inputKind === "pdf") {
+    return {
+      sourceName: params.sourceName,
+      inputKind: params.inputKind,
+      sizeBytes: params.sizeBytes,
+      parseStatus: "text-extraction-only" as const,
+      layoutReliability: "low" as const,
+      message: "PDF was parsed as text extraction review. Layout-sensitive APA formatting still needs manual review.",
+    };
+  }
+
+  return {
+    sourceName: params.sourceName,
+    inputKind: params.inputKind,
+    sizeBytes: params.sizeBytes,
+    parseStatus: "success" as const,
+    layoutReliability: params.inputKind === "docx" ? ("medium" as const) : ("low" as const),
+    message:
+      params.inputKind === "docx"
+        ? "Document parsed successfully. DOCX text and basic rich formatting were extracted."
+        : "Text parsed successfully. Layout formatting cannot be verified from plain text.",
+  };
 }
 
 export function analyzeDocument(params: {
@@ -317,9 +354,11 @@ export function analyzeDocument(params: {
   text?: string;
   sourceName?: string;
   inputKind?: UploadedDocumentKind;
+  sourceSizeBytes?: number;
   mode?: "document" | "single-reference";
 }): DocumentCheckResultV14 {
   const inputKind = params.inputKind ?? "text";
+  const sourceName = params.sourceName ?? "Pasted text";
   const documentHtml = params.html?.trim() ? params.html : textToHtml(params.text ?? "");
   const plainText = normalizeText(params.text?.trim() ? params.text : htmlToPlainText(documentHtml));
   const hasReferencesSection = /(?:^|\n)\s*References\s*(?:\n|$)/i.test(plainText);
@@ -435,7 +474,7 @@ export function analyzeDocument(params: {
   return {
     documentHtml,
     plainText,
-    sourceName: params.sourceName ?? "Pasted text",
+    sourceName,
     inputKind,
     mode: params.mode ?? "document",
     wordCount: wordCount(plainText),
@@ -446,6 +485,11 @@ export function analyzeDocument(params: {
     issues,
     manualReviewItems: manualReviewItems(inputKind),
     corrections,
+    uploadSummary: uploadSummary({
+      inputKind,
+      sourceName,
+      sizeBytes: params.sourceSizeBytes,
+    }),
     privacyNote: "Files are parsed only for this request. The app does not store uploads or connect to Google Docs.",
   };
 }

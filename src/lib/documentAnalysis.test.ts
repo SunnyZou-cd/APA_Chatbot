@@ -97,5 +97,26 @@ Smith, J. (2024). Learning APA style in first-year psychology. Journal of Studen
       ]),
     );
     expect(result.manualReviewItems.some((issue) => issue.severity === "fix")).toBe(false);
+    expect(result.manualReviewItems.every((issue) => issue.displayGroup === "manual")).toBe(true);
+  });
+
+  it("marks PDF input as text extraction review", () => {
+    const result = analyzeDocument({
+      text: "Short paper text with a citation (Smith, 2024).",
+      mode: "document",
+      inputKind: "pdf",
+      sourceName: "paper.pdf",
+      sourceSizeBytes: 2048,
+    });
+
+    expect(result.uploadSummary).toEqual(
+      expect.objectContaining({
+        sourceName: "paper.pdf",
+        inputKind: "pdf",
+        sizeBytes: 2048,
+        parseStatus: "text-extraction-only",
+        layoutReliability: "low",
+      }),
+    );
   });
 });

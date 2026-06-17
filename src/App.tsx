@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./data/rules";
+import { assignmentMistakes, checklistItems, practicePrompts, ruleCards, sourceTypeLabels } from "./data/rules";
 import { fieldDefinitions, sourceExamples, sourceTypeConfigs } from "./data/sourceExamples";
 import { buildCitation } from "./lib/citation";
 import { formatApaTextForDisplay } from "./lib/displayFormatting";
@@ -22,6 +22,7 @@ import { enhanceCitationWithLlm, isLlmConfigured, testLlmConnection } from "./li
 import type {
   CheckIssue,
   DocumentCheckResultV14,
+  DocumentCheckIssue,
   FormattedReferencePart,
   LlmCheckResult,
   LlmProviderConfig,
@@ -32,14 +33,17 @@ import type {
 
 type Tab = "build" | "document" | "learn" | "review";
 type DocumentMode = "document" | "single-reference";
+type CopyState = { label: string; status: "success" | "error"; message: string } | null;
 
 const publicBasePath = import.meta.env.BASE_URL;
+const appVersionName = "APA Coach v1.5";
+const appVersionLabel = "v1.5 review build";
 
 const sampleCheck =
   "Smith, J. The Article Title. Journal of Student Writing, 12(2).";
 const sampleMla =
   'Smith, John. "Learning APA Style in First-Year Psychology." Journal of Student Writing, vol. 12, no. 2, 2024, pp. 45-61.';
-const llmStorageKey = "apa-coach-v1.4-llm-config";
+const llmStorageKey = "apa-coach-v1.5-llm-config";
 const sampleDocumentText = `APA Practice Paper
 
 Students need structured APA feedback when they practice citations (Lacy, 2024). Citation tools should explain uncertainty instead of acting like final validators (Smith, 2023).
@@ -68,6 +72,79 @@ const topicFilters: Array<"All" | RuleTopic> = [
   "Citation style differences",
 ];
 
+const sourceFieldRationales: Record<SourceType, string[]> = {
+  journalArticle: [
+    "Author and year connect the reference to in-text citations.",
+    "Article title identifies the work; journal title and volume are the italicized container details.",
+    "DOI is preferred when available because it gives readers a stable route to the article.",
+  ],
+  book: [
+    "Author, year, and title identify the standalone work.",
+    "Publisher is required because books do not have a journal container.",
+    "DOI or URL is added only when the book has a retrievable digital identifier.",
+  ],
+  bookChapter: [
+    "Chapter author and title identify the part you used.",
+    "Book title, editor or publisher details, and page range help readers locate the chapter.",
+    "DOI or URL is included when the chapter has a stable retrieval route.",
+  ],
+  webpage: [
+    "Author, date, title, site name, and URL help readers locate a changing online source.",
+    "Use n.d. only when the page truly has no date.",
+    "The URL is required when no DOI is available.",
+  ],
+  report: [
+    "The report title is the standalone work and usually needs italic display.",
+    "Publisher or agency identifies who released the report.",
+    "DOI or URL helps readers retrieve public reports.",
+  ],
+  video: [
+    "Creator, date, title, platform, and URL let readers locate the exact media item.",
+    "The platform or channel is treated as source information.",
+    "URL is required for retrievable online media.",
+  ],
+  courseMaterial: [
+    "Course materials often need instructor or institution context.",
+    "Use source details exactly as allowed by the course or LMS policy.",
+    "Ask the instructor if the material is not publicly retrievable.",
+  ],
+  generativeAI: [
+    "AI tools need creator, date or version, tool name, provider, and URL.",
+    "APA citation may not replace course-required AI disclosure.",
+    "Do not cite generated text as if it were a stable scholarly source.",
+  ],
+};
+
+function formatBytes(size?: number): string {
+  if (!size || size <= 0) return "Size not reported";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function groupedDocumentIssues(result: DocumentCheckResultV14) {
+  return [
+    {
+      key: "detected",
+      title: "Detected issue",
+      description: "The system found a relatively clear issue in extracted text or preserved formatting signals.",
+      issues: result.issues.filter((issue) => issue.displayGroup === "detected"),
+    },
+    {
+      key: "possible",
+      title: "Possible issue",
+      description: "The system found a pattern that students should confirm against the source and APA guide.",
+      issues: result.issues.filter((issue) => issue.displayGroup !== "detected"),
+    },
+    {
+      key: "manual",
+      title: "Manual review required",
+      description: "The system cannot reliably verify this from extracted text alone.",
+      issues: result.manualReviewItems,
+    },
+  ] satisfies Array<{ key: string; title: string; description: string; issues: DocumentCheckIssue[] }>;
+}
+
 function loadStoredLlmConfig(): LlmProviderConfig {
   try {
     const raw = window.sessionStorage.getItem(llmStorageKey);
@@ -87,7 +164,7 @@ function loadStoredLlmConfig(): LlmProviderConfig {
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
   const [sourceInput, setSourceInput] = useState<SourceInput>(sourceExamples[0].input);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<CopyState>(null);
   const [llmConfig, setLlmConfig] = useState<LlmProviderConfig>(loadStoredLlmConfig);
   const [llmResult, setLlmResult] = useState<LlmCheckResult | null>(null);
   const [llmStatus, setLlmStatus] = useState<"idle" | "testing" | "enhancing">("idle");
@@ -135,7 +212,7 @@ function App() {
     setLlmMessage(null);
     try {
       const message = await testLlmConnection(llmConfig);
-      setLlmMessage(message);
+      setLlmMessage(`${message} This only confirms the provider responded; it does not verify APA accuracy.`);
     } catch (error) {
       setLlmError(error instanceof Error ? error.message : "Connection test failed.");
     } finally {
@@ -177,9 +254,13 @@ function App() {
   };
 
   const copyValue = async (label: string, value: string) => {
-    await navigator.clipboard.writeText(value);
-    setCopied(label);
-    window.setTimeout(() => setCopied(null), 1600);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyState({ label, status: "success", message: "Copied." });
+    } catch {
+      setCopyState({ label, status: "error", message: "Copy failed - please select and copy manually." });
+    }
+    window.setTimeout(() => setCopyState(null), 2200);
   };
 
   return (
@@ -191,7 +272,7 @@ function App() {
               <GraduationCap size={24} />
             </div>
             <div>
-              <p className="eyebrow">v1.4 review build</p>
+              <p className="eyebrow">{appVersionLabel}</p>
               <h1>APA Coach</h1>
             </div>
           </div>
@@ -244,7 +325,7 @@ function App() {
           {activeTab === "build" && (
             <BuildView
               citation={citation}
-              copied={copied}
+              copyState={copyState}
               copyValue={copyValue}
               sourceInput={sourceInput}
               updateField={updateField}
@@ -412,13 +493,13 @@ function RichTextCheckInput({
 
 function BuildView({
   citation,
-  copied,
+  copyState,
   copyValue,
   sourceInput,
   updateField,
 }: {
   citation: ReturnType<typeof buildCitation>;
-  copied: string | null;
+  copyState: CopyState;
   copyValue: (label: string, value: string) => Promise<void>;
   sourceInput: SourceInput;
   updateField: (key: keyof SourceInput, value: string) => void;
@@ -474,6 +555,15 @@ function BuildView({
           </select>
         </label>
 
+        <div className="field-rationale" aria-label="Why these fields are required">
+          <h3>Why this field set is required</h3>
+          <ul>
+            {sourceFieldRationales[sourceInput.sourceType].map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
         <div className="form-grid">
           {fields.map((field) => (
             <label className={fieldIssues.has(field.field) ? "field-block has-issue" : "field-block"} key={field.field}>
@@ -497,14 +587,22 @@ function BuildView({
         <div className="result-block">
           <div className="result-header">
             <h3>Reference entry</h3>
-            <button type="button" className="icon-button" onClick={() => copyValue("reference", citation.reference)}>
+            <button
+              type="button"
+              className="icon-button"
+              disabled={citation.status === "incomplete"}
+              onClick={() => copyValue("reference", citation.reference)}
+            >
               <Copy size={16} />
-              <span>{copied === "reference" ? "Copied" : "Copy"}</span>
+              <span>{copyState?.label === "reference" && copyState.status === "success" ? "Copied" : "Copy"}</span>
             </button>
           </div>
           <p className={citation.status === "incomplete" ? "status-pill incomplete" : "status-pill complete"}>
-            {citation.status === "incomplete" ? "Incomplete citation" : "Ready to review"}
+            {citation.status === "incomplete" ? "Incomplete citation" : "Draft citation - verify with APA guide"}
           </p>
+          {copyState?.label === "reference" && copyState.status === "error" && (
+            <p className="error-note compact">{copyState.message}</p>
+          )}
           <p className="citation-output hanging">
             <FormattedReference parts={citation.formattedReferenceParts} />
           </p>
@@ -590,6 +688,7 @@ function DocumentCheckView({
   setLlmPrivacyAccepted: (value: boolean) => void;
 }) {
   const llmReady = isLlmConfigured(llmConfig);
+  const issueGroups = documentResult ? groupedDocumentIssues(documentResult) : [];
 
   return (
     <div className="view-grid">
@@ -597,7 +696,7 @@ function DocumentCheckView({
         <div className="section-heading">
           <p className="eyebrow">Document Check</p>
           <h2>Review APA references and documents</h2>
-          <p>Upload DOCX/PDF/TXT, paste rich text, or check one reference. v1.4 uses a Vercel API for document parsing.</p>
+          <p>Upload DOCX/PDF/TXT, paste rich text, or check one reference. v1.5 reviews extracted text and visible formatting signals without claiming final layout validation.</p>
         </div>
 
         <div className="choice-row" role="group" aria-label="Document check mode">
@@ -642,7 +741,7 @@ function DocumentCheckView({
             onTextChange={setDocumentText}
             value={documentText}
           />
-          <small>Rich text pasted from Word or Google Docs stays visible. PDF layout checks remain lower confidence.</small>
+          <small>Rich text pasted from Word or Google Docs stays visible. PDF checks are treated as text extraction review.</small>
         </label>
 
         <div className="button-row">
@@ -663,11 +762,12 @@ function DocumentCheckView({
         </div>
 
         <p className="settings-note">
-          Privacy boundary: v1.4 parses files through the Vercel API for the current request only. It does not store uploads or connect to Google Docs.
+          Privacy boundary: v1.5 parses files through the Vercel API for the current request only. It does not store uploads or connect to Google Docs.
         </p>
         {documentError && <p className="error-note">{documentError}</p>}
 
-        <section className="settings-panel" aria-label="LLM Settings">
+        <details className="settings-panel llm-disclosure" aria-label="LLM Settings">
+          <summary>Optional LLM enhancement</summary>
           <div className="section-heading compact">
             <p className="eyebrow">Optional BYOK</p>
             <h3>LLM Settings</h3>
@@ -701,6 +801,7 @@ function DocumentCheckView({
               }
             />
             <small>The key is stored in sessionStorage, not in this repository or a database.</small>
+            <small className="field-warning">Do not paste a school, teacher, or shared API key unless you are allowed to use it.</small>
           </label>
           <label className="field-block">
             <span>Model</span>
@@ -739,19 +840,22 @@ function DocumentCheckView({
               onClick={runLlmEnhancement}
               type="button"
             >
-              {llmStatus === "enhancing" ? "Enhancing..." : "Enhance with my LLM"}
+              {llmStatus === "enhancing" ? "Enhancing..." : "Send this text to my configured LLM for extra feedback"}
             </button>
           </div>
           {!llmReady && <p className="settings-note">Add a base URL, API key, and model to enable LLM enhancement.</p>}
           {llmMessage && <p className="success-note">{llmMessage}</p>}
           {llmError && <p className="error-note">{llmError}</p>}
-        </section>
+        </details>
       </section>
 
       <section className="result-column" aria-live="polite">
         <div className="section-heading compact">
           <p className="eyebrow">Document feedback</p>
           <h2>Teaching review</h2>
+        </div>
+        <div className="limitation-note">
+          <strong>Review boundary:</strong> This check reviews extracted text and visible formatting signals. It cannot fully verify spacing, margins, page numbers, title page layout, or hanging indentation.
         </div>
 
         {!documentResult ? (
@@ -761,11 +865,24 @@ function DocumentCheckView({
           </div>
         ) : (
           <>
-            <div className="result-block">
+            <div className="result-block upload-summary">
               <h3>{documentResult.sourceName}</h3>
               <p className="rule-source">
                 {documentResult.inputKind.toUpperCase()} / {documentResult.mode} / {documentResult.wordCount} words / {documentResult.characterCount} characters
               </p>
+              <dl className="metadata-list">
+                <dt>File</dt>
+                <dd>{documentResult.uploadSummary.sourceName}</dd>
+                <dt>Type</dt>
+                <dd>{documentResult.uploadSummary.inputKind.toUpperCase()}</dd>
+                <dt>Size</dt>
+                <dd>{formatBytes(documentResult.uploadSummary.sizeBytes)}</dd>
+                <dt>Status</dt>
+                <dd>{documentResult.uploadSummary.parseStatus.replace(/-/g, " ")}</dd>
+                <dt>Layout reliability</dt>
+                <dd>{documentResult.uploadSummary.layoutReliability}</dd>
+              </dl>
+              <p className="settings-note">{documentResult.uploadSummary.message}</p>
               <p>{documentResult.privacyNote}</p>
             </div>
 
@@ -791,18 +908,32 @@ function DocumentCheckView({
               </div>
             )}
 
-            <div className="issue-list">
-              {documentResult.issues.map((issue, index) => (
-                <article className={`issue-card ${issue.severity}`} key={`${issue.ruleId}-${index}`}>
-                  <div className="issue-topline">
-                    <span>{issue.severity} / {issue.category}</span>
-                    <small>{issue.confidence} confidence</small>
+            <div className="issue-group-list">
+              {issueGroups.map((group) => (
+                <section className="issue-group" key={group.key}>
+                  <div className="issue-group-heading">
+                    <h3>{group.title}</h3>
+                    <p>{group.description}</p>
                   </div>
-                  <h3>{issue.message}</h3>
-                  <p><strong>Why it matters:</strong> {issue.whyItMatters}</p>
-                  <p><strong>Student action:</strong> {issue.studentAction}</p>
-                  {issue.evidence && <p className="rule-source">Evidence: {issue.evidence}</p>}
-                </article>
+                  {group.issues.length === 0 ? (
+                    <p className="empty-note">No items in this group from the current extraction.</p>
+                  ) : (
+                    <div className="issue-list">
+                      {group.issues.map((issue, index) => (
+                        <article className={`issue-card ${issue.severity}`} key={`${group.key}-${issue.ruleId}-${index}`}>
+                          <div className="issue-topline">
+                            <span>{issue.severity} / {issue.category}</span>
+                            <small>{issue.confidence} confidence</small>
+                          </div>
+                          <h3>{issue.message}</h3>
+                          <p><strong>Why it matters:</strong> {issue.whyItMatters}</p>
+                          <p><strong>Student action:</strong> {issue.studentAction}</p>
+                          {issue.evidence && <p className="rule-source">Evidence: {issue.evidence}</p>}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
               ))}
             </div>
 
@@ -844,17 +975,6 @@ function DocumentCheckView({
                 ))}
               </div>
             )}
-
-            <div className="compact-list">
-              <h3>Needs manual review</h3>
-              <ul>
-                {documentResult.manualReviewItems.map((issue) => (
-                  <li key={issue.ruleId}>
-                    <strong>{issue.category}:</strong> {issue.studentAction}
-                  </li>
-                ))}
-              </ul>
-            </div>
 
             {llmResult && (
               <section className="llm-result-panel">
@@ -1023,7 +1143,7 @@ function CheckView({
               onClick={runLlmEnhancement}
               type="button"
             >
-              {llmStatus === "enhancing" ? "Enhancing..." : "Enhance with my LLM"}
+              {llmStatus === "enhancing" ? "Enhancing..." : "Send this text to my configured LLM for extra feedback"}
             </button>
           </div>
           {!llmReady && <p className="settings-note">Add a base URL, API key, and model to enable LLM enhancement.</p>}
@@ -1132,7 +1252,13 @@ function CheckView({
 function LearnView() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [topicFilter, setTopicFilter] = useState<"All" | RuleTopic>("All");
-  const visibleRuleCards = topicFilter === "All" ? ruleCards : ruleCards.filter((rule) => rule.topic === topicFilter);
+  const [ruleSearch, setRuleSearch] = useState("");
+  const normalizedSearch = ruleSearch.trim().toLowerCase();
+  const visibleRuleCards = ruleCards.filter((rule) => {
+    const matchesTopic = topicFilter === "All" || rule.topic === topicFilter;
+    const searchableText = `${rule.title} ${rule.plainLanguageRule} ${rule.commonMistake} ${rule.studentAction}`.toLowerCase();
+    return matchesTopic && (!normalizedSearch || searchableText.includes(normalizedSearch));
+  });
 
   return (
     <div className="learn-stack">
@@ -1155,8 +1281,22 @@ function LearnView() {
         ))}
       </div>
 
+      <label className="field-block search-field">
+        <span>Search rule cards</span>
+        <input
+          value={ruleSearch}
+          placeholder="Search citation, italics, DOI, headings..."
+          onChange={(event) => setRuleSearch(event.target.value)}
+        />
+      </label>
+
       <section className="rule-grid">
-        {visibleRuleCards.map((rule) => (
+        {visibleRuleCards.length === 0 ? (
+          <div className="empty-state">
+            <ListChecks size={32} />
+            <p>No rule cards match this search.</p>
+          </div>
+        ) : visibleRuleCards.map((rule) => (
           <article className="rule-card" key={rule.id}>
             <p className="eyebrow">{rule.topic}</p>
             <h3>{rule.title}</h3>
@@ -1220,10 +1360,27 @@ function LearnView() {
                 <div className="feedback-box">
                   <strong>{selectedAnswers[index] === item.answer ? "Correct:" : "Try again:"}</strong>{" "}
                   {item.choices.find((choice) => choice.value === selectedAnswers[index])?.feedback}
-                  <p>{item.explanation}</p>
+                  <p><strong>Why this is right or wrong:</strong> {item.explanation}</p>
+                  <p><strong>APA principle:</strong> {item.apaPrinciple}</p>
+                  <p><strong>Next step for your paper:</strong> {item.nextStep}</p>
                 </div>
               )}
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="assignment-mistakes checklist-panel">
+        <div className="panel-title">
+          <ListChecks size={20} />
+          <h3>Common assignment mistakes for first-year students</h3>
+        </div>
+        <div className="mistake-grid">
+          {assignmentMistakes.map((mistake) => (
+            <article className="mistake-card" key={mistake.title}>
+              <h4>{mistake.title}</h4>
+              <p>{mistake.studentAction}</p>
+            </article>
           ))}
         </div>
       </section>
@@ -1234,12 +1391,12 @@ function LearnView() {
 function ReviewView() {
   const readinessItems = [
     "Vercel API route added for DOCX/PDF/TXT parsing",
-    "No login, database, Google account connection, or persistent student document storage in v1.4",
+    "No login, database, Google account connection, or persistent student document storage in v1.5",
     "Optional BYOK LLM enhancement is client-side, manual, and session-only",
     "Rule-based diagnosis remains available without any LLM configuration",
     "Document Check now handles full documents, rich-text paste, and single-reference review",
     "English-only student-facing interface",
-    "Faculty-facing handoff, deployment guide, test report, and v1.4 upgrade notes included in the repository",
+    "Faculty-facing handoff, deployment guide, test report, and v1.5 upgrade notes included in the repository",
   ];
 
   const reviewQuestions = [
@@ -1260,14 +1417,9 @@ function ReviewView() {
   ];
 
   const walkthroughSteps = [
-    "Open Build and choose Journal article with DOI to review the complete citation flow",
-    "Choose Missing author practice to confirm the tool blocks incomplete references",
-    "Open Document Check, use Full document mode, and review automatic issues plus manual review reminders",
-    "Switch Document Check to Single reference / excerpt mode and review the generated correction",
-    "Upload an exported DOCX and confirm italic/bold text remains visible in the extracted rich-text area",
-    "Review LLM Settings without entering a real key unless you intend to test your own provider",
-    "Open Learn, filter to AI citation/disclosure, and answer one practice prompt",
-    "Return to this page and review the pilot-readiness checklist before sharing with students",
+    "Try Build with one complete and one incomplete citation.",
+    "Try Document Check with a sample paper or exported DOCX.",
+    "Answer the faculty review questions and complete the feedback template.",
   ];
 
   const notPilotReadyUntil = [
@@ -1279,14 +1431,22 @@ function ReviewView() {
     "Students are told this is a coach, not a final APA validator",
   ];
 
+  const feedbackTemplate = [
+    "Accuracy concerns:",
+    "Pedagogy concerns:",
+    "Privacy concerns:",
+    "Course policy additions:",
+    "Pilot decision: approve / revise / reject",
+  ];
+
   return (
     <div className="learn-stack">
       <div className="section-heading">
         <p className="eyebrow">Faculty Review</p>
-        <h2>Ready for a professor-facing v1.4 review</h2>
+        <h2>Ready for a professor-facing v1.5 review</h2>
         <p>
-          This v1.4 build moves the main review link to Vercel so Document Check can parse
-          DOCX/PDF/TXT files through a light API route.
+          This v1.5 build keeps the Vercel Document Check API and adds clearer boundaries,
+          safer incomplete citation behavior, stronger teaching feedback, and UI polish.
           It is still a review build, not a public student pilot.
         </p>
       </div>
@@ -1294,7 +1454,7 @@ function ReviewView() {
       <section className="review-hero">
         <div>
           <p className="eyebrow">Shareable version</p>
-          <h3>APA Coach v1.4</h3>
+          <h3>{appVersionName}</h3>
           <p>
             A learning-first APA support tool for building citations, checking
             full documents or single references, and practicing APA
@@ -1326,6 +1486,35 @@ function ReviewView() {
             v1.4 notes
             <ExternalLink size={16} />
           </a>
+          <a href={`${publicBasePath}docs/v1.5-upgrade-notes.md`} target="_blank" rel="noreferrer">
+            v1.5 notes
+            <ExternalLink size={16} />
+          </a>
+        </div>
+      </section>
+
+      <section className="learn-panels">
+        <div className="checklist-panel priority-panel">
+          <div className="panel-title">
+            <ListChecks size={20} />
+            <h3>3-step review flow</h3>
+          </div>
+          <ol>
+            {walkthroughSteps.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+        <div className="checklist-panel priority-panel">
+          <div className="panel-title">
+            <ShieldCheck size={20} />
+            <h3>Not pilot-ready until</h3>
+          </div>
+          <ul>
+            {notPilotReadyUntil.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -1358,14 +1547,14 @@ function ReviewView() {
       <section className="learn-panels">
         <div className="checklist-panel">
           <div className="panel-title">
-            <ListChecks size={20} />
-            <h3>Sample walkthrough</h3>
+            <ClipboardCheck size={20} />
+            <h3>Faculty feedback template</h3>
           </div>
-          <ol>
-            {walkthroughSteps.map((item) => (
+          <ul>
+            {feedbackTemplate.map((item) => (
               <li key={item}>{item}</li>
             ))}
-          </ol>
+          </ul>
         </div>
         <div className="checklist-panel">
           <div className="panel-title">
@@ -1374,17 +1563,6 @@ function ReviewView() {
           </div>
           <ul>
             {facultyChecklist.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="checklist-panel">
-          <div className="panel-title">
-            <ShieldCheck size={20} />
-            <h3>Not pilot-ready until</h3>
-          </div>
-          <ul>
-            {notPilotReadyUntil.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>

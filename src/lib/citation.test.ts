@@ -68,7 +68,7 @@ describe("citation builder validation", () => {
     const result = buildCitation(example("missing-author"));
 
     expect(result.status).toBe("incomplete");
-    expect(result.reference).toBe("Incomplete citation");
+    expect(result.reference).toBe("Incomplete citation. Add the missing source information before copying.");
     expect(result.validationIssues.some((issue) => issue.field === "author")).toBe(true);
   });
 

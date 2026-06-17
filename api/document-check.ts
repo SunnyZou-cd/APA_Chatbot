@@ -54,23 +54,24 @@ async function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: F
   });
 }
 
-async function extractFile(file: File): Promise<{ html: string; text: string; kind: UploadedDocumentKind; sourceName: string }> {
+async function extractFile(file: File): Promise<{ html: string; text: string; kind: UploadedDocumentKind; sourceName: string; sizeBytes?: number }> {
   const sourceName = file.originalFilename ?? "Uploaded document";
   const kind = fileKind(sourceName);
   const buffer = await readFile(file.filepath);
+  const sizeBytes = typeof file.size === "number" ? file.size : buffer.byteLength;
 
   if (kind === "docx") {
     const extracted = await extractDocxHtml(buffer);
-    return { ...extracted, kind, sourceName };
+    return { ...extracted, kind, sourceName, sizeBytes };
   }
 
   if (kind === "pdf") {
     const text = await extractPdfText(buffer);
-    return { html: textToHtml(text), text, kind, sourceName };
+    return { html: textToHtml(text), text, kind, sourceName, sizeBytes };
   }
 
   const text = buffer.toString("utf8");
-  return { html: textToHtml(text), text, kind, sourceName };
+  return { html: textToHtml(text), text, kind, sourceName, sizeBytes };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -87,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let text = firstField(fields, "text");
     let inputKind: UploadedDocumentKind = "text";
     let sourceName = "Pasted text";
+    let sourceSizeBytes: number | undefined;
 
     if (file) {
       const extracted = await extractFile(file);
@@ -94,6 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       text = extracted.text;
       inputKind = extracted.kind;
       sourceName = extracted.sourceName;
+      sourceSizeBytes = extracted.sizeBytes;
     }
 
     const result = analyzeDocument({
@@ -102,12 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       inputKind,
       mode,
       sourceName,
+      sourceSizeBytes,
     });
 
     return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({
-      error: error instanceof Error ? error.message : "Document check failed.",
+      error: error instanceof Error ? `Document parsing failed: ${error.message}` : "Document parsing failed.",
     });
   }
 }
