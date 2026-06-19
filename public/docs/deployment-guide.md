@@ -1,8 +1,8 @@
-# APA Coach v1.5 Deployment Guide
+# APA Coach v1.6 Deployment Guide
 
 ## Recommended Deployment Path
 
-Use Vercel for the professor-facing v1.5 link. Document Check depends on a light API route:
+Use Vercel for the professor-facing v1.6 link. Document Check depends on a light API route:
 
 ```text
 POST /api/document-check
@@ -14,12 +14,12 @@ Current Vercel URL:
 https://apa-chatbot.vercel.app
 ```
 
-GitHub Pages can remain as a static fallback, but it cannot run the v1.5 API.
+GitHub Pages can remain as a static fallback, but it cannot run the v1.6 API.
 
 ## Risk Notes
 
 - Deploying the site uploads source code to the hosting provider.
-- v1.5 does not use student accounts, a database, Google login, or persistent student document storage.
+- v1.6 does not use student accounts, a database, Google login, or persistent student document storage.
 - DOCX/PDF/TXT files are parsed only during the current API request.
 - Optional BYOK LLM enhancement is manual and uses browser `sessionStorage`.
 - API keys must never be committed to the repository.
@@ -74,7 +74,7 @@ The existing GitHub Pages workflow can still publish a static page:
 npm run build:pages
 ```
 
-Do not use GitHub Pages as the v1.5 professor review target because `/api/document-check` will not run there.
+Do not use GitHub Pages as the v1.6 professor review target because `/api/document-check` will not run there.
 
 ## Share With Faculty
 
@@ -83,6 +83,6 @@ Send:
 - The deployed Vercel URL.
 - The Faculty Review page in the app.
 - The professor handoff notes.
-- The v1.5 upgrade notes.
+- The v1.6 upgrade notes and repository changelog.
 - The v1.2 BYOK LLM guide if the professor wants to evaluate optional LLM feedback.
-- A note that v1.5 is a review build and is not yet recommended for open student pilot use.
+- A note that v1.6 is a faculty-review release and is not yet recommended for open student pilot use.

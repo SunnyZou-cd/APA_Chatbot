@@ -1,8 +1,8 @@
-# APA Coach v1.5 Faculty Review Notes
+# APA Coach v1.6 Faculty Review Notes
 
 ## Short Description
 
-APA Coach v1.5 is a learning-first APA support prototype. It helps students build citation pairs, review full documents or single references, and learn APA formatting boundaries without writing papers for them.
+APA Coach v1.6 is a learning-first APA support prototype. It helps students build citation pairs, review full documents or single references, and learn APA formatting boundaries without writing papers for them.
 
 Live review URL:
 
@@ -16,9 +16,18 @@ Static fallback:
 https://sunnyzou-cd.github.io/APA_Chatbot/
 ```
 
-The Vercel URL is the v1.5 review target because Document Check uses `/api/document-check`.
+The Vercel URL is the v1.6 review target because Document Check uses `/api/document-check`.
 
-## What Changed in v1.5
+## What Changed in v1.6
+
+- The complete interface now uses the approved forest palette and a restrained Liquid Glass treatment.
+- Desktop navigation can collapse to an icon rail and remembers the preference locally.
+- Medium screens use a compact rail and phones use a fixed bottom navigation bar.
+- Build, Document Check, Learn, and Faculty Review share consistent form, feedback, loading, and panel styling.
+- Keyboard focus, active-page semantics, reduced-motion behavior, and reduced-transparency fallbacks are stronger.
+- Page metadata, favicon, and crawler metadata are ready for the public release.
+
+## v1.5 Foundation
 
 - Document Check remains the main review entry point.
 - The old Check workflow is folded into Document Check as Single reference / excerpt mode.
@@ -40,7 +49,7 @@ The Vercel URL is the v1.5 review target because Document Check uses `/api/docum
 
 ## Current Boundaries
 
-Version 1.5 does not include student accounts, a database, Google account access, Google Docs login, paper drafting, source truth verification, or automatic final APA approval.
+Version 1.6 does not include student accounts, a database, Google account access, Google Docs login, paper drafting, source truth verification, or automatic final APA approval.
 
 Uploaded files are parsed only for the current request. The app does not save uploads to a database or connect to Google Drive.
 

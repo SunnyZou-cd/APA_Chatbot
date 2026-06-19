@@ -10,6 +10,8 @@ import {
   FileText,
   GraduationCap,
   ListChecks,
+  PanelLeftClose,
+  PanelLeftOpen,
   Rocket,
   ShieldCheck,
   Sparkles,
@@ -36,14 +38,23 @@ type DocumentMode = "document" | "single-reference";
 type CopyState = { label: string; status: "success" | "error"; message: string } | null;
 
 const publicBasePath = import.meta.env.BASE_URL;
-const appVersionName = "APA Coach v1.5";
-const appVersionLabel = "v1.5 review build";
+const appVersionName = "APA Coach v1.6";
+const appVersionLabel = "v1.6 release";
+const sidebarStorageKey = "apa-coach-sidebar-collapsed";
+
+const navigationItems = [
+  { id: "build", label: "Build", icon: BookOpen },
+  { id: "document", label: "Document Check", icon: FileText },
+  { id: "learn", label: "Learn", icon: Sparkles },
+  { id: "review", label: "Faculty Review", icon: Rocket },
+] as const;
 
 const sampleCheck =
   "Smith, J. The Article Title. Journal of Student Writing, 12(2).";
 const sampleMla =
   'Smith, John. "Learning APA Style in First-Year Psychology." Journal of Student Writing, vol. 12, no. 2, 2024, pp. 45-61.';
-const llmStorageKey = "apa-coach-v1.5-llm-config";
+const llmStorageKey = "apa-coach-llm-config";
+const legacyLlmStorageKey = "apa-coach-v1.5-llm-config";
 const sampleDocumentText = `APA Practice Paper
 
 Students need structured APA feedback when they practice citations (Lacy, 2024). Citation tools should explain uncertainty instead of acting like final validators (Smith, 2023).
@@ -147,7 +158,7 @@ function groupedDocumentIssues(result: DocumentCheckResultV14) {
 
 function loadStoredLlmConfig(): LlmProviderConfig {
   try {
-    const raw = window.sessionStorage.getItem(llmStorageKey);
+    const raw = window.sessionStorage.getItem(llmStorageKey) ?? window.sessionStorage.getItem(legacyLlmStorageKey);
     if (!raw) return defaultLlmConfig;
     const parsed = JSON.parse(raw) as Partial<LlmProviderConfig>;
     return {
@@ -161,8 +172,17 @@ function loadStoredLlmConfig(): LlmProviderConfig {
   }
 }
 
+function loadSidebarCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(sidebarStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(loadSidebarCollapsed);
   const [sourceInput, setSourceInput] = useState<SourceInput>(sourceExamples[0].input);
   const [copyState, setCopyState] = useState<CopyState>(null);
   const [llmConfig, setLlmConfig] = useState<LlmProviderConfig>(loadStoredLlmConfig);
@@ -183,6 +203,14 @@ function App() {
   useEffect(() => {
     window.sessionStorage.setItem(llmStorageKey, JSON.stringify(llmConfig));
   }, [llmConfig]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(sidebarStorageKey, String(sidebarCollapsed));
+    } catch {
+      // A blocked storage preference should never prevent the app from working.
+    }
+  }, [sidebarCollapsed]);
 
   const updateField = (key: keyof SourceInput, value: string) => {
     setSourceInput((current) => ({
@@ -265,55 +293,60 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="workspace">
+      <a className="skip-link" href="#main-tool-content">
+        Skip to main content
+      </a>
+      <section className={sidebarCollapsed ? "workspace sidebar-collapsed" : "workspace"}>
         <aside className="sidebar" aria-label="APA Coach navigation">
-          <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
-              <GraduationCap size={24} />
+          <div className="sidebar-header">
+            <div className="brand-lockup">
+              <div className="brand-mark" aria-hidden="true">
+                <GraduationCap size={24} strokeWidth={1.8} />
+              </div>
+              <div className="brand-copy">
+                <p className="eyebrow">{appVersionLabel}</p>
+                <h1>APA Coach</h1>
+              </div>
             </div>
-            <div>
-              <p className="eyebrow">{appVersionLabel}</p>
-              <h1>APA Coach</h1>
-            </div>
+            <button
+              aria-expanded={!sidebarCollapsed}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="sidebar-toggle"
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              type="button"
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen aria-hidden="true" size={18} strokeWidth={1.8} />
+              ) : (
+                <PanelLeftClose aria-hidden="true" size={18} strokeWidth={1.8} />
+              )}
+            </button>
           </div>
 
           <nav className="tab-list" aria-label="Main tools">
-            <button
-              className={activeTab === "build" ? "tab-button active" : "tab-button"}
-              onClick={() => setActiveTab("build")}
-              type="button"
-            >
-              <BookOpen size={18} />
-              Build
-            </button>
-            <button
-              className={activeTab === "document" ? "tab-button active" : "tab-button"}
-              onClick={() => setActiveTab("document")}
-              type="button"
-            >
-              <FileText size={18} />
-              Document Check
-            </button>
-            <button
-              className={activeTab === "learn" ? "tab-button active" : "tab-button"}
-              onClick={() => setActiveTab("learn")}
-              type="button"
-            >
-              <Sparkles size={18} />
-              Learn
-            </button>
-            <button
-              className={activeTab === "review" ? "tab-button active" : "tab-button"}
-              onClick={() => setActiveTab("review")}
-              type="button"
-            >
-              <Rocket size={18} />
-              Faculty Review
-            </button>
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  aria-current={isActive ? "page" : undefined}
+                  aria-label={item.label}
+                  className={isActive ? "tab-button active" : "tab-button"}
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  title={item.label}
+                  type="button"
+                >
+                  <Icon aria-hidden="true" size={19} strokeWidth={1.8} />
+                  <span className="tab-label">{item.label}</span>
+                </button>
+              );
+            })}
           </nav>
 
           <div className="integrity-panel">
-            <ShieldCheck size={20} />
+            <ShieldCheck aria-hidden="true" size={20} strokeWidth={1.8} />
             <div>
               <strong>Learning boundary</strong>
               <p>This coach explains APA choices, flags uncertainty, and avoids writing the paper for the student.</p>
@@ -321,42 +354,54 @@ function App() {
           </div>
         </aside>
 
-        <section className="tool-surface">
-          {activeTab === "build" && (
-            <BuildView
-              citation={citation}
-              copyState={copyState}
-              copyValue={copyValue}
-              sourceInput={sourceInput}
-              updateField={updateField}
-            />
-          )}
-          {activeTab === "learn" && <LearnView />}
-          {activeTab === "document" && (
-            <DocumentCheckView
-              documentError={documentError}
-              documentResult={documentResult}
-              documentStatus={documentStatus}
-              documentText={documentText}
-              documentHtml={documentHtml}
-              documentMode={documentMode}
-              llmConfig={llmConfig}
-              llmError={llmError}
-              llmMessage={llmMessage}
-              llmPrivacyAccepted={llmPrivacyAccepted}
-              llmResult={llmResult}
-              llmStatus={llmStatus}
-              runDocumentCheck={submitDocumentCheck}
-              runLlmConnectionTest={runLlmConnectionTest}
-              runLlmEnhancement={runLlmEnhancement}
-              setDocumentHtml={setDocumentHtml}
-              setDocumentMode={setDocumentMode}
-              setDocumentText={setDocumentText}
-              setLlmConfig={setLlmConfig}
-              setLlmPrivacyAccepted={setLlmPrivacyAccepted}
-            />
-          )}
-          {activeTab === "review" && <ReviewView />}
+        <section className="tool-surface" id="main-tool-content" tabIndex={-1}>
+          <header className="mobile-app-bar">
+            <div className="brand-mark" aria-hidden="true">
+              <GraduationCap size={21} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span>APA Coach</span>
+              <strong>{navigationItems.find((item) => item.id === activeTab)?.label}</strong>
+            </div>
+          </header>
+
+          <div className="view-stage" key={activeTab}>
+            {activeTab === "build" && (
+              <BuildView
+                citation={citation}
+                copyState={copyState}
+                copyValue={copyValue}
+                sourceInput={sourceInput}
+                updateField={updateField}
+              />
+            )}
+            {activeTab === "learn" && <LearnView />}
+            {activeTab === "document" && (
+              <DocumentCheckView
+                documentError={documentError}
+                documentResult={documentResult}
+                documentStatus={documentStatus}
+                documentText={documentText}
+                documentHtml={documentHtml}
+                documentMode={documentMode}
+                llmConfig={llmConfig}
+                llmError={llmError}
+                llmMessage={llmMessage}
+                llmPrivacyAccepted={llmPrivacyAccepted}
+                llmResult={llmResult}
+                llmStatus={llmStatus}
+                runDocumentCheck={submitDocumentCheck}
+                runLlmConnectionTest={runLlmConnectionTest}
+                runLlmEnhancement={runLlmEnhancement}
+                setDocumentHtml={setDocumentHtml}
+                setDocumentMode={setDocumentMode}
+                setDocumentText={setDocumentText}
+                setLlmConfig={setLlmConfig}
+                setLlmPrivacyAccepted={setLlmPrivacyAccepted}
+              />
+            )}
+            {activeTab === "review" && <ReviewView />}
+          </div>
         </section>
       </section>
     </main>
@@ -696,7 +741,7 @@ function DocumentCheckView({
         <div className="section-heading">
           <p className="eyebrow">Document Check</p>
           <h2>Review APA references and documents</h2>
-          <p>Upload DOCX/PDF/TXT, paste rich text, or check one reference. v1.5 reviews extracted text and visible formatting signals without claiming final layout validation.</p>
+          <p>Upload DOCX/PDF/TXT, paste rich text, or check one reference. v1.6 reviews extracted text and visible formatting signals without claiming final layout validation.</p>
         </div>
 
         <div className="choice-row" role="group" aria-label="Document check mode">
@@ -762,7 +807,7 @@ function DocumentCheckView({
         </div>
 
         <p className="settings-note">
-          Privacy boundary: v1.5 parses files through the Vercel API for the current request only. It does not store uploads or connect to Google Docs.
+          Privacy boundary: v1.6 parses files through the Vercel API for the current request only. It does not store uploads or connect to Google Docs.
         </p>
         {documentError && <p className="error-note">{documentError}</p>}
 
@@ -1391,12 +1436,12 @@ function LearnView() {
 function ReviewView() {
   const readinessItems = [
     "Vercel API route added for DOCX/PDF/TXT parsing",
-    "No login, database, Google account connection, or persistent student document storage in v1.5",
+    "No login, database, Google account connection, or persistent student document storage in v1.6",
     "Optional BYOK LLM enhancement is client-side, manual, and session-only",
     "Rule-based diagnosis remains available without any LLM configuration",
     "Document Check now handles full documents, rich-text paste, and single-reference review",
     "English-only student-facing interface",
-    "Faculty-facing handoff, deployment guide, test report, and v1.5 upgrade notes included in the repository",
+    "Faculty-facing handoff, deployment guide, changelog, and v1.6 upgrade notes included in the repository",
   ];
 
   const reviewQuestions = [
@@ -1443,10 +1488,10 @@ function ReviewView() {
     <div className="learn-stack">
       <div className="section-heading">
         <p className="eyebrow">Faculty Review</p>
-        <h2>Ready for a professor-facing v1.5 review</h2>
+        <h2>Ready for a professor-facing v1.6 review</h2>
         <p>
-          This v1.5 build keeps the Vercel Document Check API and adds clearer boundaries,
-          safer incomplete citation behavior, stronger teaching feedback, and UI polish.
+          This v1.6 release keeps the Vercel Document Check API and adds a responsive
+          Liquid Glass interface, collapsible navigation, and stronger accessibility.
           It is still a review build, not a public student pilot.
         </p>
       </div>
@@ -1488,6 +1533,10 @@ function ReviewView() {
           </a>
           <a href={`${publicBasePath}docs/v1.5-upgrade-notes.md`} target="_blank" rel="noreferrer">
             v1.5 notes
+            <ExternalLink size={16} />
+          </a>
+          <a href={`${publicBasePath}docs/v1.6-upgrade-notes.md`} target="_blank" rel="noreferrer">
+            v1.6 notes
             <ExternalLink size={16} />
           </a>
         </div>

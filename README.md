@@ -4,7 +4,7 @@ APA Coach is a learning-first APA citation and writing-support prototype. It hel
 
 ## Version
 
-Current version: `1.5.0`
+Current version: `1.6.0`
 
 ## Live Site
 
@@ -27,6 +27,7 @@ Static GitHub Pages fallback: `https://sunnyzou-cd.github.io/APA_Chatbot/`
 - Gives hint-first feedback before revealing a suggested correction.
 - Provides APA rule cards, paper setup checks, AI citation guidance, and short practice prompts.
 - Includes a faculty review view that explains the learning boundary, privacy posture, and deployment readiness.
+- Uses a responsive Liquid Glass interface with a collapsible desktop sidebar and mobile bottom navigation.
 
 ## What This App Does Not Do
 
@@ -58,7 +59,7 @@ Success sign: the production build appears in `dist`, and the preview page loads
 
 ## Recommended Deployment
 
-v1.5 should be reviewed on Vercel because Document Check uses a light API route.
+v1.6 should be reviewed on Vercel because Document Check uses a light API route.
 
 - Production URL: https://apa-chatbot.vercel.app
 - Vercel project: `sunnyzou-cds-projects/apa-chatbot`
@@ -78,4 +79,4 @@ For future redeploys, use GitHub + Vercel:
    - Output directory: `dist`
 4. Share the Vercel URL with the professor.
 
-See `public/docs/deployment-guide.md` and `public/docs/v1.5-upgrade-notes.md` for the current professor-facing handoff.
+See `CHANGELOG.md`, `public/docs/deployment-guide.md`, and `public/docs/v1.6-upgrade-notes.md` for the current release handoff.
